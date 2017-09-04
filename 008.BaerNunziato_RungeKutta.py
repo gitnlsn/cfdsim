@@ -17,7 +17,7 @@ foldername = 'results_BaerNunziato'
 mesh_res  = 50
 mesh_P0   = 0.0
 mesh_DD   = 0.03          # largura
-mesh_L    = 0.06          # comprimento
+mesh_L    = 0.10          # comprimento
 mesh_Cx   = mesh_L *0.25       # initial circle
 mesh_Cy   = mesh_DD*0.5
 mesh_Rad  = mesh_DD*0.2
@@ -32,6 +32,7 @@ cons_mu1 = 1.0E-3
 cons_mu2 = 1.1E-3
 cons_vin = 1.0E-2
 cons_g   = 9.8E-0
+cons_dl  = 1.0E-3
 
 a_min = 0
 a_max = 1
@@ -93,7 +94,7 @@ RH2      = Constant(cons_rh2  )
 MU1      = Constant(cons_mu1  )
 MU2      = Constant(cons_mu2  )
 u_inlet  = Constant(cons_vin  )
-dl       = Constant(1E-3)
+dl       = Constant(cons_dl   )
 GG       = as_vector(   [Constant(0), Constant(-cons_g)]  )
 HH       = as_vector(   [Constant(0), Expression('x[1]',degree=2)]   )
 NN       = FacetNormal(mesh)
@@ -127,10 +128,10 @@ sigma1m = MU1*(grad(um1)+grad(um1).T) -pm1*Identity(len(um1))
 sigma2n = MU2*(grad(un2)+grad(un2).T) -pn2*Identity(len(un2))
 sigma2m = MU2*(grad(um2)+grad(um2).T) -pm2*Identity(len(um2))
 
-SIGMA1_DS = as_tensor([  [-RH1*a1_md*inner(GG,HH),  Constant(0)],
-                         [ Constant(0), -RH1*a1_md*inner(GG,HH)]  ])
-SIGMA2_DS = as_tensor([  [-RH2*a2_md*inner(GG,HH),  Constant(0)],
-                         [ Constant(0), -RH2*a2_md*inner(GG,HH)]  ])
+SIGMA1_DS = as_tensor([  [-(RH1+RH2)*0.5*a1_md*inner(GG,HH),  Constant(0)],
+                         [ Constant(0), -(RH1+RH2)*0.5*a1_md*inner(GG,HH)]  ]) #+MU1*0.5*(an1*(grad(un1)+grad(un1).T) +am1*(grad(um1)+grad(um1).T))
+SIGMA2_DS = as_tensor([  [-(RH1+RH2)*0.5*a2_md*inner(GG,HH),  Constant(0)],
+                         [ Constant(0), -(RH1+RH2)*0.5*a2_md*inner(GG,HH)]  ]) #+MU2*0.5*(an2*(grad(un2)+grad(un2).T) +am2*(grad(um2)+grad(um2).T))
 
 u_intn = (un1*RH1*an1 + un2*RH2*an2)/(RH1*an1 + RH2*an2)
 u_intm = (um1*RH1*am1 + um2*RH2*am2)/(RH1*am1 + RH2*am2)
@@ -145,8 +146,8 @@ F21   = MU1*MU2/(MU1+MU2)*(u1_md -u2_md)/dl +p_int*grad(a2_md)
 F1 = a1_df *b1                                     *dx \
    + inner(u_intn, grad(an1))*0.5 *b1              *dx \
    + inner(u_intm, grad(am1))*0.5 *b1              *dx \
-   + an1*an2*(pn1*an1 -pn2*an2)*b1*0.5*KK          *dx \
-   + am1*am2*(pm1*am1 -pm2*am2)*b1*0.5*KK          *dx \
+   + an1*an2*(pn1 -pn2)*b1*0.5*KK                  *dx \
+   + am1*am2*(pm1 -pm2)*b1*0.5*KK                  *dx \
    \
    + a1_df *q1                                     *dx \
    + div(an1*un1)*0.5 *q1                          *dx \
@@ -163,6 +164,7 @@ F1 = a1_df *b1                                     *dx \
    + inner(sigma1m*am1*0.5, grad(v1))              *dx \
    - inner(F12,v1)                                 *dx \
    - inner(RH1*a1_md*GG,v1)                        *dx \
+   - inner(dot(SIGMA1_DS,NN), v1)                  *ds(ds_outlet) \
    \
    + RH2*inner(au2df,v2)                           *dx \
    + RH2*inner(div(an2*outer(un2,un2)),v2)*0.5     *dx \
@@ -171,13 +173,12 @@ F1 = a1_df *b1                                     *dx \
    + inner(sigma2m*am2*0.5, grad(v2))              *dx \
    - inner(F21,v2)                                 *dx \
    - inner(RH2*a2_md*GG,v2)                        *dx \
+   - inner(dot(SIGMA2_DS,NN), v2)                  *ds(ds_outlet) \
    \
-   #- inner(dot(SIGMA1_DS,NN), v1)                  *ds(ds_outlet) \
-   #- inner(dot(SIGMA2_DS,NN), v2)                  *ds(ds_outlet) \
 
 # ------ BOUNDARY CONDITIONS ------ #
-p_out1 = Expression('-rho*g*x[1]', rho=(cons_rh1+cons_rh2)*0.5, g=cons_g, degree=1)
-p_out2 = Expression('-rho*g*x[1]', rho=cons_rh2, g=cons_g, degree=1)
+p_out1 = Expression('-rho*g*x[1]', rho=0.5*(cons_rh1+cons_rh2), g=cons_g, degree=1)
+p_out2 = Expression('-rho*g*x[1]', rho=0.5*(cons_rh1+cons_rh2), g=cons_g, degree=1)
 
 p_aa,p_u1,p_u2,p_p1,p_p2 = 0,1,2,3,4
 BC1 = [
@@ -191,7 +192,7 @@ BC1 = [
          #DirichletBC(U.sub(p_u1), Constant((0,0)), outlet   ),
          #DirichletBC(U.sub(p_u2), Constant((0,0)), outlet   ),
          DirichletBC(U.sub(p_p1), p_out1, outlet   ),
-         DirichletBC(U.sub(p_p2), p_out1, outlet   ),
+         DirichletBC(U.sub(p_p2), p_out2, outlet   ),
       ] # end - BC #
 
 # ------ NON LINEAR PROBLEM DEFINITIONS ------ #
@@ -262,16 +263,16 @@ count_iteration   = 0
 #p2_init = project( -RH2*inner(GG,HH), U_prs)
 
 assign(ansn.sub(p_aa), project(Constant(0.5         ), U_vol))
-assign(ansn.sub(p_u1), project(Constant((cons_vin,0)), U_vel))
-assign(ansn.sub(p_u2), project(Constant((cons_vin,0)), U_vel))
+assign(ansn.sub(p_u1), project(Constant((0,0)), U_vel))
+assign(ansn.sub(p_u2), project(Constant((0,0)), U_vel))
 assign(ansn.sub(p_p1), project(Constant(0.0E-1      ), U_prs))
 assign(ansn.sub(p_p2), project(Constant(0.0E-1      ), U_prs))
 #assign(ansn.sub(p_p1), p1_init)
 #assign(ansn.sub(p_p2), p2_init)
 
 assign(ansm.sub(p_aa), project(Constant(0.5         ), U_vol))
-assign(ansm.sub(p_u1), project(Constant((cons_vin,0)), U_vel))
-assign(ansm.sub(p_u2), project(Constant((cons_vin,0)), U_vel))
+assign(ansm.sub(p_u1), project(Constant((0,0)), U_vel))
+assign(ansm.sub(p_u2), project(Constant((0,0)), U_vel))
 assign(ansm.sub(p_p1), project(Constant(0.0E-1      ), U_prs))
 assign(ansm.sub(p_p2), project(Constant(0.0E-1      ), U_prs))
 #assign(ansm.sub(p_p1), p1_init)

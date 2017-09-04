@@ -21,6 +21,7 @@ mesh_H   = 0.001
 mesh_Cx     = 0.010
 mesh_Cy     = 0.5*mesh_D
 mesh_Radius = 0.1*mesh_D
+obstr_size  = mesh_D*1.0/3.0
 
 cons_dt  = 0.01
 cons_rho = 1E+3
@@ -30,7 +31,7 @@ cons_v1  = 1E-1
 cons_pout = 0
 
 a_min = 0
-a_max = 1.01
+a_max = 1.00
 v_max = cons_v1*50
 p_min = -1.0E5
 p_max =  1.0E5
@@ -40,7 +41,7 @@ FMAX  = 1.0E5
 tol   = 1.0E-8
 
 TRANSIENT_MAX_ITE  = 20
-TRANSIENT_MAX_TIME = 2.0
+TRANSIENT_MAX_TIME = 1.00
 OPTIMIZAT_MAX_ITE  = 100000
 
 # ------ MESH ------ #
@@ -62,6 +63,7 @@ obstcl = '( on_boundary && (x[0]>'+str(mesh_0)+') && (x[0]<'+str(mesh_L)+') '\
                      + '&& (x[1]>'+str(mesh_0)+') && (x[1]<'+str(mesh_D)+')   )'
 walls  = '( on_boundary && ((x[1]=='+str(mesh_D)+') || (x[1]=='+str(mesh_0)+'))  ) || '+obstcl
 
+
 ds_inlet, ds_walls, ds_outlet = 1,2,3
 
 boundaries     = FacetFunction ('size_t', mesh)
@@ -73,6 +75,12 @@ side_walls.mark   (boundaries, ds_walls  )
 side_inlet.mark   (boundaries, ds_inlet  )
 side_outlet.mark  (boundaries, ds_outlet )
 ds = Measure( 'ds', subdomain_data=boundaries )
+
+domain = CellFunction ('size_t', mesh)
+functional_domain = '(x[0]>'+str(mesh_Cx+obstr_size)+')'
+dx_to_opt  = 1
+CompiledSubDomain( functional_domain ).mark( domain, dx_to_opt )
+dx = Measure('dx', subdomain_data=domain )
 
 # ------ VARIATIONAL FORMULATION ------ #
 FE_u  = VectorElement('P', 'triangle', 2)
@@ -98,12 +106,12 @@ def mat(x,k):
 
 alpha    = project( initChannel(degree=1), U_mat, annotate=False)
 #alpha    = project( Constant(0), U_mat, annotate=False)
-u_lst    = project( Constant((cons_v1,0)), U_vel, annotate=False)
-u_aux    = project( Constant((cons_v1,0)), U_vel, annotate=False)
-u_nxt    = project( Constant((cons_v1,0)), U_vel, annotate=False)
-p_nxt    = project( Constant(    0      ), U_prs, annotate=False)
-a_lst    = project( Constant(    0      ), U_alp, annotate=False)
-a_nxt    = project( Constant(    0      ), U_alp, annotate=False)
+u_lst    = project( Constant((cons_v1,0)), U_vel)
+u_aux    = project( Constant((cons_v1,0)), U_vel)
+u_nxt    = project( Constant((cons_v1,0)), U_vel)
+p_nxt    = project( Constant(    0      ), U_prs)
+a_lst    = project( Constant(    0      ), U_alp)
+a_nxt    = project( Constant(    0      ), U_alp)
 
 #plot(alpha)
 #plot(mat(alpha,k_mat))
@@ -246,11 +254,11 @@ class Transient_flow_save():
       self.vtk_aa << ai
 
 # ------ TRANSIENT SIMULATION ------ #
-def foward_solve(folderName):
+def foward(folderName, annotate=True):
    t                 = 0.0
    count_iteration   = 0
    flowSto = Transient_flow_save(folderName)
-   adj_start_timestep(time=t)
+   #if annotate: adj_start_timestep()
    while( t < TRANSIENT_MAX_TIME ):
       count_iteration = count_iteration +1
       t = t +cons_dt
@@ -263,14 +271,15 @@ def foward_solve(folderName):
       print ('Residual : {}'.format(residual) )
       print ('Iteration: {}'.format(count_iteration) )
       flowSto.save_flow(u_nxt,p_nxt,a_nxt)
-      u_lst.assign(u_nxt, annotate=False)
+      u_lst.assign(u_nxt)
       a_lst.assign(a_nxt)
-      if t==TRANSIENT_MAX_TIME:
-         adj_inc_timestep(time=t, finished=True)
-      else:
-         adj_inc_timestep(time=t, finished=False)
+      # if annotate:
+      #    if t==TRANSIENT_MAX_TIME:
+      #       adj_inc_timestep(time=t, finished=True)
+      #    else:
+      #       adj_inc_timestep(time=t, finished=False)
 
-foward_solve('01.InitialGuess')
+foward('01.InitialGuess')
 
 ########################################################
 # ------ ------ 02) ADJOINT OPTIMIZATION ------ ------ #
@@ -281,28 +290,32 @@ adj_html("adjoint.html", "adjoint")
 
 # ------ OTIMIZATION STEP POS EVALUATION ------ #
 vtk_gam = File(filename+'/porosity.pvd')
-gam_viz = Function(U_alp)
-def post_eval(j, gamma):
-   gam_viz.assign(gamma)
-   vtk_gam << gam_viz
-
-vtk_dj = File(filename+'/gradient.pvd')
-fig = plot(alpha, title='Gradient', mode='color')
-
-def derivative_cb(j, dj, m):
-  fig.plot(dj)
-  vtk_dj << dj
-  print ("j = %f" % (j))
+vtk_dj  = File(filename+'/gradient.pvd')
+gam_viz = Function(U_mat)
+djj_viz = Function(U_mat)
+fig     = plot(alpha, title='Gradient', mode='color')
 
 # ------ FUNCTIONAL DEFINITION ------ #
 a_obj    = Constant(0.5)
+m        = Control(alpha)
+J        = inner(a_nxt -a_obj,a_nxt- a_obj)*dx(dx_to_opt)*dt[FINISH_TIME]
 
-m  = Control(alpha)
-J  = inner(a_nxt -a_obj,a_nxt- a_obj)*ds(ds_outlet)*dt
+def post_eval(j, m):
+   gam_viz.assign(m, annotate=False)
+   gam_viz.rename('porosity','porosity')
+   vtk_gam << gam_viz
+
+def derivative_cb(j, dj, m):
+  fig.plot(dj)
+  djj_viz.assign(dj, annotate=False)
+  djj_viz.rename('gradient','gradient')
+  vtk_dj << djj_viz
+  print ("j = %f" % (j))
+
 J_reduced = ReducedFunctional(
-      Functional( J ),
-      m,
-      eval_cb_post=post_eval,
+      functional  = Functional( J ),
+      controls    = m,
+      eval_cb_post       = post_eval,
       derivative_cb_post = derivative_cb  )
 
 class LowerBound(Expression):
@@ -316,10 +329,9 @@ class UpperBound(Expression):
       self.degree = degree
    def eval_cell(self, values, x, ufc_cell):
       values[0] = Constant(0.0)
-      obstr_size = mesh_D*2.0/3.0
       can_be_solid = (x[0] -mesh_Cx) < +obstr_size \
                  and (x[0] -mesh_Cx) > -obstr_size \
-                 and (x[1] -mesh_Cy) > +obstr_size \
+                 and (x[1] -mesh_Cy) < +obstr_size \
                  and (x[1] -mesh_Cy) > -obstr_size
       if can_be_solid:
          values[0] = Constant(1.0)
@@ -327,8 +339,8 @@ class UpperBound(Expression):
 # ------ OPTIMIZATION PROBLEM DEFINITION ------ #
 adjProblem = MinimizationProblem(
    J_reduced,
-   bounds         = [   interpolate(LowerBound(degree=1), U_alp),
-                        interpolate(UpperBound(degree=1), U_alp)  ],
+   bounds         = [   interpolate(LowerBound(degree=1), U_mat),
+                        interpolate(UpperBound(degree=1), U_mat)  ],
    constraints    = [],
    )
 parameters = {'maximum_iterations': OPTIMIZAT_MAX_ITE}
@@ -337,6 +349,6 @@ adjSolver = IPOPTSolver(
    parameters     = parameters)
 
 alpha_opt = adjSolver.solve()
-alpha.assign(alpha_opt)
-foward_solve('02.solution')
+alpha.assign(alpha_opt, annotate=False)
+foward('02.solution', annotate=False)
 
