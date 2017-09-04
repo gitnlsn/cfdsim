@@ -1,5 +1,5 @@
 #!/bin/sh
-THIS_NAME="Update Git v0.01"
+THIS_NAME="Push Git v0.01"
 COMMIT_DESCRIPTION=$*
 
 echo "${THIS_NAME}: begin."
