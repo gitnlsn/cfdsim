@@ -40,8 +40,8 @@ k_mat = 2
 FMAX  = 1.0E5
 tol   = 1.0E-8
 
-TRANSIENT_MAX_ITE  = 20
-TRANSIENT_MAX_TIME = 1.00
+TRANSIENT_MAX_TIME = 1.50
+TRANSIENT_MAX_ITE  = TRANSIENT_MAX_TIME/cons_dt
 OPTIMIZAT_MAX_ITE  = 100000
 
 # ------ MESH ------ #
@@ -204,19 +204,19 @@ prm2 = nlSolver2.parameters["snes_solver"]
 prm3 = nlSolver3.parameters["snes_solver"]
 prm4 = nlSolver4.parameters["snes_solver"]
 for prm in [prm1, prm2, prm3, prm4]:
-   prm["error_on_nonconvergence"       ] = True
+   prm["error_on_nonconvergence"       ] = False
    prm["solution_tolerance"            ] = 1.0E-16
    prm["maximum_iterations"            ] = 15
    prm["maximum_residual_evaluations"  ] = 20000
-   prm["absolute_tolerance"            ] = 9.0E-13
-   prm["relative_tolerance"            ] = 8.0E-13
+   prm["absolute_tolerance"            ] = 9.0E-12
+   prm["relative_tolerance"            ] = 8.0E-12
    prm["linear_solver"                 ] = "mumps"
+   #prm["krylov_solver"                 ] = "amg"
    #prm["sign"                          ] = "default"
    #prm["method"                        ] = "vinewtonssls"
    #prm["line_search"                   ] = "bt"
    #prm["preconditioner"                ] = "none"
    #prm["report"                        ] = True
-   #prm["krylov_solver"                 ]
    #prm["lu_solver"                     ]
 
 #set_log_level(PROGRESS)
@@ -259,9 +259,9 @@ def foward(folderName, annotate=True):
    count_iteration   = 0
    flowSto = Transient_flow_save(folderName)
    if annotate: adj_start_timestep()
-   while( t < TRANSIENT_MAX_TIME ):
-      count_iteration = count_iteration +1
-      t = t +cons_dt
+   while( t < TRANSIENT_MAX_TIME and count_iteration < TRANSIENT_MAX_ITE ):
+      count_iteration   = count_iteration +1
+      t                 = t               +cons_dt
       nlSolver1.solve()
       nlSolver2.solve()
       nlSolver3.solve()
@@ -274,7 +274,7 @@ def foward(folderName, annotate=True):
       u_lst.assign(u_nxt)
       a_lst.assign(a_nxt)
       if annotate:
-         if t==TRANSIENT_MAX_TIME:
+         if count_iteration==TRANSIENT_MAX_ITE:
             adj_inc_timestep(time=t, finished=True)
          else:
             adj_inc_timestep(time=t, finished=False)
@@ -341,6 +341,7 @@ adjProblem = MinimizationProblem(
    J_reduced,
    bounds         = [   interpolate(LowerBound(degree=1), U_mat),
                         interpolate(UpperBound(degree=1), U_mat)  ],
+   #
    constraints    = [],
    )
 parameters = {'maximum_iterations': OPTIMIZAT_MAX_ITE}
@@ -349,6 +350,12 @@ adjSolver = IPOPTSolver(
    parameters     = parameters)
 
 alpha_opt = adjSolver.solve()
+# alpha_opt = minimize(J_reduced,
+#    method   =  'L-BFGS-B', 
+#    tol      =  2e-08,
+#    bounds   =  [  interpolate(LowerBound(degree=1), U_mat),
+#                   interpolate(UpperBound(degree=1), U_mat)  ],
+#    options  =  {"disp": True}                                     )
 alpha.assign(alpha_opt, annotate=False)
 foward('02.solution', annotate=False)
 
