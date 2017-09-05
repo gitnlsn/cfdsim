@@ -258,7 +258,7 @@ def foward(folderName, annotate=True):
    t                 = 0.0
    count_iteration   = 0
    flowSto = Transient_flow_save(folderName)
-   #if annotate: adj_start_timestep()
+   if annotate: adj_start_timestep()
    while( t < TRANSIENT_MAX_TIME ):
       count_iteration = count_iteration +1
       t = t +cons_dt
@@ -273,11 +273,11 @@ def foward(folderName, annotate=True):
       flowSto.save_flow(u_nxt,p_nxt,a_nxt)
       u_lst.assign(u_nxt)
       a_lst.assign(a_nxt)
-      # if annotate:
-      #    if t==TRANSIENT_MAX_TIME:
-      #       adj_inc_timestep(time=t, finished=True)
-      #    else:
-      #       adj_inc_timestep(time=t, finished=False)
+      if annotate:
+         if t==TRANSIENT_MAX_TIME:
+            adj_inc_timestep(time=t, finished=True)
+         else:
+            adj_inc_timestep(time=t, finished=False)
 
 foward('01.InitialGuess')
 
@@ -293,7 +293,7 @@ vtk_gam = File(filename+'/porosity.pvd')
 vtk_dj  = File(filename+'/gradient.pvd')
 gam_viz = Function(U_mat)
 djj_viz = Function(U_mat)
-fig     = plot(alpha, title='Gradient', mode='color')
+#fig     = plot(alpha, title='Gradient', mode='color')
 
 # ------ FUNCTIONAL DEFINITION ------ #
 a_obj    = Constant(0.5)
@@ -306,7 +306,7 @@ def post_eval(j, m):
    vtk_gam << gam_viz
 
 def derivative_cb(j, dj, m):
-  fig.plot(dj)
+  #fig.plot(dj)
   djj_viz.assign(dj, annotate=False)
   djj_viz.rename('gradient','gradient')
   vtk_dj << djj_viz
