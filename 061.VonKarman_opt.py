@@ -23,12 +23,13 @@ mesh_Cy     = 0.5*mesh_D
 mesh_Radius = 0.1*mesh_D
 obstr_size  = mesh_D*1.0/3.0
 
-cons_dt  = 0.01
-cons_rho = 1E+3
-cons_mu  = 1E-3
-cons_dd  = 1E-8
-cons_v1  = 1E-1
-cons_pout = 0
+cons_dt   = 0.01
+cons_rho  = 1.0E+3
+cons_mu   = 1.0E-3
+cons_dd   = 1.0E-8
+cons_v1   = 1.0E-1
+cons_pout = 0.0
+cons_tol  = 1.0E-1
 
 a_min = 0
 a_max = 1.00
@@ -36,12 +37,11 @@ v_max = cons_v1*50
 p_min = -1.0E5
 p_max =  1.0E5
 
-k_mat = 2
+k_mat = 1
 FMAX  = 1.0E5
-tol   = 1.0E-8
 
-TRANSIENT_MAX_TIME = 1.50
-TRANSIENT_MAX_ITE  = TRANSIENT_MAX_TIME/cons_dt
+TRANSIENT_MAX_TIME = 0.05
+TRANSIENT_MAX_ITE  = int(TRANSIENT_MAX_TIME/cons_dt)
 OPTIMIZAT_MAX_ITE  = 100000
 
 # ------ MESH ------ #
@@ -63,7 +63,6 @@ obstcl = '( on_boundary && (x[0]>'+str(mesh_0)+') && (x[0]<'+str(mesh_L)+') '\
                      + '&& (x[1]>'+str(mesh_0)+') && (x[1]<'+str(mesh_D)+')   )'
 walls  = '( on_boundary && ((x[1]=='+str(mesh_D)+') || (x[1]=='+str(mesh_0)+'))  ) || '+obstcl
 
-
 ds_inlet, ds_walls, ds_outlet = 1,2,3
 
 boundaries     = FacetFunction ('size_t', mesh)
@@ -77,7 +76,7 @@ side_outlet.mark  (boundaries, ds_outlet )
 ds = Measure( 'ds', subdomain_data=boundaries )
 
 domain = CellFunction ('size_t', mesh)
-functional_domain = '(x[0]>'+str(mesh_Cx+obstr_size)+')'
+functional_domain = '(x[0]>'+str(mesh_Cx+obstr_size*2.0)+')'
 dx_to_opt  = 1
 CompiledSubDomain( functional_domain ).mark( domain, dx_to_opt )
 dx = Measure('dx', subdomain_data=domain )
@@ -94,24 +93,36 @@ U_mat = FunctionSpace(mesh, FE_m)
 
 class initChannel(Expression):
    def eval(self, value, x):
-      tol = 1E-10
       is_obstacle = (x[0] -mesh_Cx)**2 + (x[1] -mesh_Cy)**2 <= mesh_Radius**2
       if is_obstacle:
-         value[0] = +1.0 -tol
+         value[0] = 1.0
       else:
-         value[0] = +tol
+         value[0] = 0.0
+
+class initChannel2(Expression):
+   def eval(self, value, x):
+      is_obstacle  = (x[0] -mesh_Cx) < +obstr_size \
+                 and (x[0] -mesh_Cx) > -obstr_size \
+                 and (x[1] -mesh_Cy) < +obstr_size \
+                 and (x[1] -mesh_Cy) > -obstr_size
+      if is_obstacle:
+         value[0] = 1.0
+      else:
+         value[0] = 0.0
+
+TOL      = Constant(cons_tol  )
 
 def mat(x,k):
-   return 1.0/2.0+ tanh((x*2.0-1.0)*k)/(tanh(k)*2.0)
+   return 1.0/2.0+ (1.0 -2.0*TOL)*tanh((x*2.0-1.0)*k)/(tanh(k)*2.0)
 
-alpha    = project( initChannel(degree=1), U_mat, annotate=False)
-#alpha    = project( Constant(0), U_mat, annotate=False)
-u_lst    = project( Constant((cons_v1,0)), U_vel)
-u_aux    = project( Constant((cons_v1,0)), U_vel)
-u_nxt    = project( Constant((cons_v1,0)), U_vel)
-p_nxt    = project( Constant(    0      ), U_prs)
-a_lst    = project( Constant(    0      ), U_alp)
-a_nxt    = project( Constant(    0      ), U_alp)
+alpha    = project( initChannel(degree=2), U_mat, name='alpha', annotate=True)
+#alpha    = project( Constant(0), U_mat, annotate=True)
+u_lst    = Function(U_vel) #project( Constant((cons_v1,0)), U_vel)
+u_aux    = Function(U_vel) #project( Constant((cons_v1,0)), U_vel)
+u_nxt    = Function(U_vel) #project( Constant((cons_v1,0)), U_vel)
+p_nxt    = Function(U_prs) #project( Constant(    0      ), U_prs)
+a_lst    = Function(U_alp) #project( Constant(    0      ), U_alp)
+a_nxt    = Function(U_alp) #project( Constant(    0      ), U_alp)
 
 #plot(alpha)
 #plot(mat(alpha,k_mat))
@@ -140,7 +151,7 @@ u_cv = (u_nxt+u_lst)*0.5
 a_md = (a_nxt+a_lst)*0.5
 
 def compl(x):
-   return Constant(1) -x
+   return (1.0-2.0*TOL)/(1.0 -TOL)*x +(1.0 -TOL)
 
 F1 = RHO*inner( u_aux -u_lst, v )/DT       *compl(alpha) *dx \
    + RHO*inner( dot(u_md,grad(u_md).T), v )*compl(alpha) *dx \
@@ -258,28 +269,36 @@ def foward(folderName, annotate=True):
    t                 = 0.0
    count_iteration   = 0
    flowSto = Transient_flow_save(folderName)
-   if annotate: adj_start_timestep()
-   while( t < TRANSIENT_MAX_TIME and count_iteration < TRANSIENT_MAX_ITE ):
+   u_lst.assign( project( Constant((0,0)), U_vel), annotate=annotate)
+   u_aux.assign( project( Constant((0,0)), U_vel), annotate=annotate)
+   u_nxt.assign( project( Constant((0,0)), U_vel), annotate=annotate)
+   p_nxt.assign( project( Constant(0), U_prs), annotate=annotate)
+   a_lst.assign( project( Constant(0), U_alp), annotate=annotate)
+   a_nxt.assign( project( Constant(0), U_alp), annotate=annotate)
+   #if annotate: adj_start_timestep()
+   while( count_iteration < TRANSIENT_MAX_ITE ):
       count_iteration   = count_iteration +1
       t                 = t               +cons_dt
-      nlSolver1.solve()
-      nlSolver2.solve()
-      nlSolver3.solve()
-      nlSolver4.solve()
+      nlSolver1.solve(annotate=annotate)
+      nlSolver2.solve(annotate=annotate)
+      nlSolver3.solve(annotate=annotate)
+      nlSolver4.solve(annotate=annotate)
       residual = assemble( inner(a_nxt -a_lst,a_nxt -a_lst)*dx
                           +inner(u_nxt -u_lst,u_nxt -u_lst)*dx )
       print ('Residual : {}'.format(residual) )
       print ('Iteration: {}'.format(count_iteration) )
       flowSto.save_flow(u_nxt,p_nxt,a_nxt)
-      u_lst.assign(u_nxt)
-      a_lst.assign(a_nxt)
-      if annotate:
-         if count_iteration==TRANSIENT_MAX_ITE:
-            adj_inc_timestep(time=t, finished=True)
-         else:
-            adj_inc_timestep(time=t, finished=False)
+      u_lst.assign(u_nxt, annotate=annotate)
+      a_lst.assign(a_nxt, annotate=annotate)
+      # if annotate:
+      #    if count_iteration==TRANSIENT_MAX_ITE:
+      #       print ('Annotate: time {}, finished'.format(count_iteration))
+      #       adj_inc_timestep(time=t, finished=True)
+      #    else:
+      #       print ('Annotate: time {}, not finished'.format(count_iteration))
+      #       adj_inc_timestep(time=t, finished=False)
 
-foward('01.InitialGuess')
+foward('01.InitialGuess', annotate=True)
 
 ########################################################
 # ------ ------ 02) ADJOINT OPTIMIZATION ------ ------ #
@@ -291,32 +310,35 @@ adj_html("adjoint.html", "adjoint")
 # ------ OTIMIZATION STEP POS EVALUATION ------ #
 vtk_gam = File(filename+'/porosity.pvd')
 vtk_dj  = File(filename+'/gradient.pvd')
-gam_viz = Function(U_mat)
-djj_viz = Function(U_mat)
+gam_viz = Function(U_mat); gam_viz.rename('porosity','porosity')
+djj_viz = Function(U_mat); djj_viz.rename('gradient','gradient')
+
 #fig     = plot(alpha, title='Gradient', mode='color')
 
 # ------ FUNCTIONAL DEFINITION ------ #
 a_obj    = Constant(0.5)
 m        = Control(alpha)
-J        = inner(a_nxt -a_obj,a_nxt- a_obj)*dx(dx_to_opt)*dt[FINISH_TIME]
+J        = inner(a_nxt -a_obj,a_nxt- a_obj)*dx(dx_to_opt)
 
 def post_eval(j, m):
+   print ('Post_eval')
    gam_viz.assign(m, annotate=False)
-   gam_viz.rename('porosity','porosity')
    vtk_gam << gam_viz
+   alpha.assign(m, annotate=False)
+   foward('post_eval', annotate=False)
 
 def derivative_cb(j, dj, m):
   #fig.plot(dj)
+  print ('calculating djj_viz assign')
   djj_viz.assign(dj, annotate=False)
-  djj_viz.rename('gradient','gradient')
   vtk_dj << djj_viz
   print ("j = %f" % (j))
 
 J_reduced = ReducedFunctional(
       functional  = Functional( J ),
       controls    = m,
-      eval_cb_post       = post_eval,
-      derivative_cb_post = derivative_cb  )
+      eval_cb_post       = post_eval,)
+      #derivative_cb_post = derivative_cb  )
 
 class LowerBound(Expression):
    def __init__(self,degree):
@@ -339,10 +361,10 @@ class UpperBound(Expression):
 # ------ OPTIMIZATION PROBLEM DEFINITION ------ #
 adjProblem = MinimizationProblem(
    J_reduced,
+   #bounds = (0.0,1.0),
    bounds         = [   interpolate(LowerBound(degree=1), U_mat),
                         interpolate(UpperBound(degree=1), U_mat)  ],
-   #
-   constraints    = [],
+   #constraints    = [],
    )
 parameters = {'maximum_iterations': OPTIMIZAT_MAX_ITE}
 adjSolver = IPOPTSolver(

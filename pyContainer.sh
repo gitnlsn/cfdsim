@@ -20,7 +20,7 @@ if [ -e "${PROG_NAME}" ]; then      # A) program found
    cd "${DIRR_NAME}"                   # moves into directory
    ./wordGreper.sh Objective
    echo "${THIS_NAME}: running program."
-   mpirun -n 4 python "${PROG_NAME}" > "output.txt"   # executes python program
+   python "${PROG_NAME}" > "output.txt"   # executes python program
 else                                # B) program not found
    echo "${THIS_NAME}: program not found. Abort."
 fi
