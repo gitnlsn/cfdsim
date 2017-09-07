@@ -13,7 +13,7 @@ from dolfin_adjoint  import *
 
 # ------ SIMULATION PARAMETERS ------ #
 filename = 'results_VonKarman'
-mesh_res = 100
+mesh_res = 50
 mesh_0   = 0.0
 mesh_D   = 0.020
 mesh_L   = 0.060
@@ -29,7 +29,7 @@ cons_mu   = 1.0E-3
 cons_dd   = 1.0E-8
 cons_v1   = 1.0E-1
 cons_pout = 0.0
-cons_tol  = 1.0E-1
+cons_tol  = 1.0E-3
 
 a_min = 0
 a_max = 1.00
@@ -37,7 +37,7 @@ v_max = cons_v1*50
 p_min = -1.0E5
 p_max =  1.0E5
 
-k_mat = 1
+k_mat = 3
 FMAX  = 1.0E5
 
 TRANSIENT_MAX_TIME = 0.05
@@ -115,7 +115,7 @@ TOL      = Constant(cons_tol  )
 def mat(x,k):
    return 1.0/2.0+ (1.0 -2.0*TOL)*tanh((x*2.0-1.0)*k)/(tanh(k)*2.0)
 
-alpha    = project( initChannel(degree=2), U_mat, name='alpha', annotate=True)
+alpha    = project( initChannel(degree=1), U_mat, name='alpha', annotate=True)
 #alpha    = project( Constant(0), U_mat, annotate=True)
 u_lst    = Function(U_vel) #project( Constant((cons_v1,0)), U_vel)
 u_aux    = Function(U_vel) #project( Constant((cons_v1,0)), U_vel)
@@ -123,10 +123,6 @@ u_nxt    = Function(U_vel) #project( Constant((cons_v1,0)), U_vel)
 p_nxt    = Function(U_prs) #project( Constant(    0      ), U_prs)
 a_lst    = Function(U_alp) #project( Constant(    0      ), U_alp)
 a_nxt    = Function(U_alp) #project( Constant(    0      ), U_alp)
-
-#plot(alpha)
-#plot(mat(alpha,k_mat))
-#interactive()
 
 v = TestFunction(U_vel)
 q = TestFunction(U_prs)
@@ -151,23 +147,31 @@ u_cv = (u_nxt+u_lst)*0.5
 a_md = (a_nxt+a_lst)*0.5
 
 def compl(x):
-   return (1.0-2.0*TOL)/(1.0 -TOL)*x +(1.0 -TOL)
+   return (2.0*TOL-1.0)*x +(1.0 -TOL)
+
+# plot(alpha)
+# plot(compl(alpha))
+# plot(mat(alpha,k_mat))
+# interactive()
 
 F1 = RHO*inner( u_aux -u_lst, v )/DT       *compl(alpha) *dx \
    + RHO*inner( dot(u_md,grad(u_md).T), v )*compl(alpha) *dx \
    + MU *inner( grad(u_md)*compl(alpha)+outer(u_md,grad(compl(alpha))),grad(v) )        *dx \
    + FMAX*inner( u_md*mat(alpha,k_mat), v )  *dx
 
-F2 = inner( grad(p_nxt),grad(q) ) *compl(alpha) *dx \
+F2 = inner( grad(p_nxt),grad(q) )*compl(alpha)  *dx \
    + inner( div(u_aux*compl(alpha)), q)*RHO/DT  *dx
 
 F3 = inner( u_nxt -u_aux,v )      *compl(alpha) *dx \
-   + inner( grad(p_nxt),v) *DT/RHO*compl(alpha) *dx
+   + inner( grad(p_nxt),v)*compl(alpha) *DT/RHO *dx
 
 F4 = inner(a_nxt -a_lst,b) /DT                              *compl(alpha) *dx \
    + inner(u_cv,grad(a_md))*b                               *compl(alpha) *dx \
    + inner( grad(a_md), grad(b))*DD                         *compl(alpha) *dx \
    + inner( dot(u_cv,grad(a_md)), dot(u_cv,grad(b)))*DT/2.0 *compl(alpha) *dx
+
+F5 = inner(u_lst,v)*dx
+F6 = inner(a_lst,b)*dx
 
 # ------ BOUNDARY CONDITIONS ------ #
 p_ux,p_uy,p_pp,p_ww = 0,1,2,3
@@ -179,6 +183,7 @@ BC1 = [
 BC2 = [
          #DirichletBC(U_prs, p_in,   inlet),
          DirichletBC(U_prs, p_out, outlet),
+         #DirichletBC(U_prs, p_out, 'x[0]=='+str(mesh_L)+' && x[1]=='+str(mesh_D*0.5), method='pointwise'),
       ] # end - BC #
 
 BC4 = [
@@ -191,11 +196,15 @@ dF1 = derivative(F1, u_aux)
 dF2 = derivative(F2, p_nxt)
 dF3 = derivative(F3, u_nxt)
 dF4 = derivative(F4, a_nxt)
+dF5 = derivative(F5, u_lst)
+dF6 = derivative(F6, a_lst)
 
 nlProblem1 = NonlinearVariationalProblem(F1, u_aux, BC1, dF1)
 nlProblem2 = NonlinearVariationalProblem(F2, p_nxt, BC2, dF2)
 nlProblem3 = NonlinearVariationalProblem(F3, u_nxt,  [], dF3)
 nlProblem4 = NonlinearVariationalProblem(F4, a_nxt, BC4, dF4)
+nlProblem5 = NonlinearVariationalProblem(F5, u_lst,  [], dF5)
+nlProblem6 = NonlinearVariationalProblem(F6, a_lst,  [], dF6)
 
 #nlProblem2.set_bounds( project(Constant(p_min),U_alp),project(Constant(p_max),U_alp) )
 #nlProblem4.set_bounds( project(Constant(a_min),U_alp),project(Constant(a_max),U_alp) )
@@ -204,17 +213,24 @@ nlSolver1  = NonlinearVariationalSolver(nlProblem1)
 nlSolver2  = NonlinearVariationalSolver(nlProblem2)
 nlSolver3  = NonlinearVariationalSolver(nlProblem3)
 nlSolver4  = NonlinearVariationalSolver(nlProblem4)
+nlSolver5  = NonlinearVariationalSolver(nlProblem5)
+nlSolver6  = NonlinearVariationalSolver(nlProblem6)
 
 nlSolver1.parameters["nonlinear_solver"] = "snes"
 nlSolver2.parameters["nonlinear_solver"] = "snes"
 nlSolver3.parameters["nonlinear_solver"] = "snes"
 nlSolver4.parameters["nonlinear_solver"] = "snes"
+nlSolver5.parameters["nonlinear_solver"] = "snes"
+nlSolver6.parameters["nonlinear_solver"] = "snes"
 
 prm1 = nlSolver1.parameters["snes_solver"]
 prm2 = nlSolver2.parameters["snes_solver"]
 prm3 = nlSolver3.parameters["snes_solver"]
 prm4 = nlSolver4.parameters["snes_solver"]
-for prm in [prm1, prm2, prm3, prm4]:
+prm5 = nlSolver5.parameters["snes_solver"]
+prm6 = nlSolver6.parameters["snes_solver"]
+
+for prm in [prm1, prm2, prm3, prm4, prm5, prm6]:
    prm["error_on_nonconvergence"       ] = False
    prm["solution_tolerance"            ] = 1.0E-16
    prm["maximum_iterations"            ] = 15
@@ -268,13 +284,9 @@ class Transient_flow_save():
 def foward(folderName, annotate=True):
    t                 = 0.0
    count_iteration   = 0
-   flowSto = Transient_flow_save(folderName)
-   u_lst.assign( project( Constant((0,0)), U_vel), annotate=annotate)
-   u_aux.assign( project( Constant((0,0)), U_vel), annotate=annotate)
-   u_nxt.assign( project( Constant((0,0)), U_vel), annotate=annotate)
-   p_nxt.assign( project( Constant(0), U_prs), annotate=annotate)
-   a_lst.assign( project( Constant(0), U_alp), annotate=annotate)
-   a_nxt.assign( project( Constant(0), U_alp), annotate=annotate)
+   #flowSto = Transient_flow_save(folderName)
+   nlSolver5.solve(annotate=annotate)
+   nlSolver6.solve(annotate=annotate)
    #if annotate: adj_start_timestep()
    while( count_iteration < TRANSIENT_MAX_ITE ):
       count_iteration   = count_iteration +1
@@ -283,11 +295,11 @@ def foward(folderName, annotate=True):
       nlSolver2.solve(annotate=annotate)
       nlSolver3.solve(annotate=annotate)
       nlSolver4.solve(annotate=annotate)
-      residual = assemble( inner(a_nxt -a_lst,a_nxt -a_lst)*dx
-                          +inner(u_nxt -u_lst,u_nxt -u_lst)*dx )
-      print ('Residual : {}'.format(residual) )
+      # residual = assemble( inner(a_nxt -a_lst,a_nxt -a_lst)*dx
+      #                     +inner(u_nxt -u_lst,u_nxt -u_lst)*dx )
+      #print ('Residual : {}'.format(residual) )
       print ('Iteration: {}'.format(count_iteration) )
-      flowSto.save_flow(u_nxt,p_nxt,a_nxt)
+      #flowSto.save_flow(u_nxt,p_nxt,a_nxt)
       u_lst.assign(u_nxt, annotate=annotate)
       a_lst.assign(a_nxt, annotate=annotate)
       # if annotate:
@@ -337,8 +349,9 @@ def derivative_cb(j, dj, m):
 J_reduced = ReducedFunctional(
       functional  = Functional( J ),
       controls    = m,
-      eval_cb_post       = post_eval,)
-      #derivative_cb_post = derivative_cb  )
+      #eval_cb_post       = post_eval,
+      #derivative_cb_post = derivative_cb
+      )
 
 class LowerBound(Expression):
    def __init__(self,degree):
