@@ -12,20 +12,20 @@ from mshr            import *
 
 # ------ SIMULATION PARAMETERS ------ #
 filename = 'results_VonKarman'
-mesh_res = 100
+mesh_res = 200
 mesh_0   = 0.0
-mesh_D   = 0.020
-mesh_L   = 0.060
+mesh_D   = 0.010
+mesh_L   = 0.030
 mesh_H   = 0.001
-mesh_Cx     = 0.010
+mesh_Cx     = 0.003
 mesh_Cy     = 0.5*mesh_D
-mesh_obstr  = 0.1*mesh_D
+mesh_obstr  = 0.001
 
-cons_dt  = 0.01
-cons_rho = 1E+3
-cons_mu  = 1E-3
-cons_dd  = 1E-8
-cons_v1  = 1E-1
+cons_dt  = 1.0E-2
+cons_rho = 1.0E+3
+cons_mu  = 1.0E-3
+cons_dd  = 1.0E-8
+cons_v1  = 1.5E-2
 cons_pout = 0
 
 a_min = 0
@@ -35,7 +35,7 @@ p_min = -1.0E5
 p_max =  1.0E5
 
 TRANSIENT_MAX_ITE  = 200
-TRANSIENT_MAX_TIME = 2.0
+TRANSIENT_MAX_TIME = 3.0
 
 # ------ MESH ------ #
 part1 = Rectangle(
@@ -82,10 +82,6 @@ u_nxt    = project( Constant((cons_v1,0)), U_vel)
 p_nxt    = project( Constant(    0      ), U_prs)
 a_lst    = project( Constant(    0      ), U_alp)
 a_nxt    = project( Constant(    0      ), U_alp)
-
-#plot(alpha)
-#plot(mat(alpha,k_mat))
-#interactive()
 
 v = TestFunction(U_vel)
 q = TestFunction(U_prs)
@@ -154,9 +150,6 @@ nlProblem1 = NonlinearVariationalProblem(F1, u_aux, BC1, dF1)
 nlProblem2 = NonlinearVariationalProblem(F2, p_nxt, BC2, dF2)
 nlProblem3 = NonlinearVariationalProblem(F3, u_nxt,  [], dF3)
 nlProblem4 = NonlinearVariationalProblem(F4, a_nxt, BC4, dF4)
-
-#nlProblem2.set_bounds( project(Constant(p_min),U_alp),project(Constant(p_max),U_alp) )
-#nlProblem4.set_bounds( project(Constant(a_min),U_alp),project(Constant(a_max),U_alp) )
 
 nlSolver1  = NonlinearVariationalSolver(nlProblem1)
 nlSolver2  = NonlinearVariationalSolver(nlProblem2)
