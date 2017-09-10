@@ -28,11 +28,11 @@ cons_dd  = 1.0E-8
 cons_v1  = 1.0E-1
 cons_pout = 0
 
-a_min = 0
-a_max = 1.01
-v_max = cons_v1*50
-p_min = -1.0E5
-p_max =  1.0E5
+# a_min = 0
+# a_max = 1.01
+# v_max = cons_v1*50
+# p_min = -1.0E5
+# p_max =  1.0E5
 
 TRANSIENT_MAX_ITE  = 200
 TRANSIENT_MAX_TIME = 3.0
