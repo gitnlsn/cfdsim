@@ -12,7 +12,7 @@ from mshr            import *
 
 # ------ SIMULATION PARAMETERS ------ #
 filename = 'results_VonKarman'
-mesh_res = 130
+mesh_res = 200
 mesh_0   = 0.0
 mesh_D   = 0.015
 mesh_L   = 0.050
