@@ -35,7 +35,7 @@ cons_pout = 0
 # p_max =  1.0E5
 
 TRANSIENT_MAX_ITE  = 200
-TRANSIENT_MAX_TIME = 3.0
+TRANSIENT_MAX_TIME = 6.0
 
 # ------ MESH ------ #
 part1 = Rectangle(

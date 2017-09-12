@@ -13,7 +13,7 @@ from dolfin_adjoint  import *
 
 # ------ SIMULATION PARAMETERS ------ #
 filename = 'results_VonKarman'
-mesh_res = 100
+mesh_res = 50
 mesh_0   = 0.0
 mesh_D   = 0.020
 mesh_L   = 0.060
@@ -23,7 +23,7 @@ mesh_Cy     = 0.5*mesh_D
 mesh_Radius = 0.1*mesh_D
 obstr_size  = mesh_D*1.0/3.0
 
-cons_dt   = 0.01
+cons_dt   = 0.005
 cons_rho  = 1.0E+3
 cons_mu   = 1.0E-3
 cons_dd   = 1.0E-8
@@ -115,7 +115,7 @@ TOL      = Constant(cons_tol  )
 def mat(x,k):
    return 1.0/2.0+ (1.0 -2.0*TOL)*tanh((x*2.0-1.0)*k)/(tanh(k)*2.0)
 
-alpha    = project( initChannel2(degree=1), U_mat, name='alpha')
+alpha    = project( initChannel(degree=1), U_mat, name='alpha')
 #alpha    = project( Constant(0), U_mat, annotate=True)
 u_lst    = Function(U_vel) #project( Constant((cons_v1,0)), U_vel)
 u_aux    = Function(U_vel) #project( Constant((cons_v1,0)), U_vel)
