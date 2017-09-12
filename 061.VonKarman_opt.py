@@ -13,7 +13,7 @@ from dolfin_adjoint  import *
 
 # ------ SIMULATION PARAMETERS ------ #
 filename = 'results_VonKarman'
-mesh_res = 50
+mesh_res = 100
 mesh_0   = 0.0
 mesh_D   = 0.020
 mesh_L   = 0.060
@@ -40,7 +40,7 @@ p_max =  1.0E5
 k_mat = 3
 FMAX  = 1.0E5
 
-TRANSIENT_MAX_TIME = 0.05
+TRANSIENT_MAX_TIME = 2.00
 TRANSIENT_MAX_ITE  = int(TRANSIENT_MAX_TIME/cons_dt)
 OPTIMIZAT_MAX_ITE  = 100000
 
@@ -106,7 +106,7 @@ class initChannel2(Expression):
                  and (x[1] -mesh_Cy) < +obstr_size \
                  and (x[1] -mesh_Cy) > -obstr_size
       if is_obstacle:
-         value[0] = 1.0
+         value[0] = 0.5
       else:
          value[0] = 0.0
 
@@ -115,7 +115,7 @@ TOL      = Constant(cons_tol  )
 def mat(x,k):
    return 1.0/2.0+ (1.0 -2.0*TOL)*tanh((x*2.0-1.0)*k)/(tanh(k)*2.0)
 
-alpha    = project( initChannel(degree=1), U_mat, name='alpha', annotate=True)
+alpha    = project( initChannel2(degree=1), U_mat, name='alpha')
 #alpha    = project( Constant(0), U_mat, annotate=True)
 u_lst    = Function(U_vel) #project( Constant((cons_v1,0)), U_vel)
 u_aux    = Function(U_vel) #project( Constant((cons_v1,0)), U_vel)
@@ -281,16 +281,17 @@ class Transient_flow_save():
       self.vtk_aa << ai
 
 # ------ TRANSIENT SIMULATION ------ #
-def foward(folderName, annotate=True):
+def foward(folderName, annotate=True, MAX_ITERATIONS=TRANSIENT_MAX_ITE):
    t                 = 0.0
    count_iteration   = 0
-   #flowSto = Transient_flow_save(folderName)
+   flowSto = Transient_flow_save(folderName)
    nlSolver5.solve(annotate=annotate)
    nlSolver6.solve(annotate=annotate)
    #if annotate: adj_start_timestep()
-   while( count_iteration < TRANSIENT_MAX_ITE ):
+   while( count_iteration < MAX_ITERATIONS ):
       count_iteration   = count_iteration +1
       t                 = t               +cons_dt
+      print ('Iteration: {}'.format(count_iteration) )
       nlSolver1.solve(annotate=annotate)
       nlSolver2.solve(annotate=annotate)
       nlSolver3.solve(annotate=annotate)
@@ -298,8 +299,7 @@ def foward(folderName, annotate=True):
       # residual = assemble( inner(a_nxt -a_lst,a_nxt -a_lst)*dx
       #                     +inner(u_nxt -u_lst,u_nxt -u_lst)*dx )
       #print ('Residual : {}'.format(residual) )
-      print ('Iteration: {}'.format(count_iteration) )
-      #flowSto.save_flow(u_nxt,p_nxt,a_nxt)
+      flowSto.save_flow(u_nxt,p_nxt,a_nxt)
       u_lst.assign(u_nxt, annotate=annotate)
       a_lst.assign(a_nxt, annotate=annotate)
       # if annotate:
@@ -337,7 +337,7 @@ def post_eval(j, m):
    gam_viz.assign(m, annotate=False)
    vtk_gam << gam_viz
    alpha.assign(m, annotate=False)
-   foward('post_eval', annotate=False)
+   foward('post_eval', annotate=False, MAX_ITERATIONS=10)
 
 def derivative_cb(j, dj, m):
   #fig.plot(dj)
@@ -349,8 +349,8 @@ def derivative_cb(j, dj, m):
 J_reduced = ReducedFunctional(
       functional  = Functional( J ),
       controls    = m,
-      #eval_cb_post       = post_eval,
-      #derivative_cb_post = derivative_cb
+      eval_cb_post       = post_eval,
+      derivative_cb_post = derivative_cb
       )
 
 class LowerBound(Expression):
