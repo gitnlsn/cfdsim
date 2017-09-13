@@ -23,7 +23,7 @@ mesh_Cy     = 0.5*mesh_D
 mesh_Radius = 0.1*mesh_D
 obstr_size  = mesh_D*1.0/3.0
 
-cons_dt   = 0.005
+cons_dt   = 0.002
 cons_rho  = 1.0E+3
 cons_mu   = 1.0E-3
 cons_dd   = 1.0E-8
@@ -332,12 +332,13 @@ a_obj    = Constant(0.5)
 m        = Control(alpha)
 J        = inner(a_nxt -a_obj,a_nxt- a_obj)*dx(dx_to_opt)
 
+post_eval_sim = 1
 def post_eval(j, m):
    print ('Post_eval')
    gam_viz.assign(m, annotate=False)
    vtk_gam << gam_viz
    alpha.assign(m, annotate=False)
-   foward('post_eval', annotate=False, MAX_ITERATIONS=10)
+   foward('post_eval_'+str(post_eval_sim), annotate=False, MAX_ITERATIONS=100)
 
 def derivative_cb(j, dj, m):
   #fig.plot(dj)
@@ -365,9 +366,9 @@ class UpperBound(Expression):
    def eval_cell(self, values, x, ufc_cell):
       values[0] = Constant(0.0)
       can_be_solid = (x[0] -mesh_Cx) < +obstr_size \
-                 and (x[0] -mesh_Cx) > -obstr_size \
-                 and (x[1] -mesh_Cy) < +obstr_size \
-                 and (x[1] -mesh_Cy) > -obstr_size
+                 and (x[0] -mesh_Cx) > -obstr_size
+                 # and (x[1] -mesh_Cy) < +obstr_size \
+                 # and (x[1] -mesh_Cy) > -obstr_size
       if can_be_solid:
          values[0] = Constant(1.0)
 
