@@ -2,7 +2,7 @@
 THIS_NAME="PythonContainer v0.03"
 PROG_NAME=$1
 DIRR_NAME=$2
-WORD=$3
+MPI_NUM=$3
 WORDGREP="wordGreper.sh"
 
 echo "${THIS_NAME}: begin."
@@ -20,7 +20,11 @@ if [ -e "${PROG_NAME}" ]; then      # A) program found
    cd "${DIRR_NAME}"                   # moves into directory
    ./wordGreper.sh Objective
    echo "${THIS_NAME}: running program."
-   python "${PROG_NAME}" > "output.txt"   # executes python program
+   if [ -z "${MPI_NUM}" ]; then  # executes python program without mpi
+       python "${PROG_NAME}" > "output.txt"
+   else                          # executes python with specified mpi processes numbers
+       mpirun -n "${MPI_NUM}" python "${PROG_NAME}" > "output.txt"
+   fi
 else                                # B) program not found
    echo "${THIS_NAME}: program not found. Abort."
 fi
