@@ -40,7 +40,7 @@ p_max =  1.0E5
 k_mat = 3
 FMAX  = 1.0E5
 
-TRANSIENT_MAX_TIME = 2.00
+TRANSIENT_MAX_TIME = 1.00
 TRANSIENT_MAX_ITE  = int(TRANSIENT_MAX_TIME/cons_dt)
 OPTIMIZAT_MAX_ITE  = 100000
 
@@ -341,11 +341,13 @@ def post_eval(j, m):
    foward('post_eval', annotate=False, MAX_ITERATIONS=300)
 
 def derivative_cb(j, dj, m):
-  #fig.plot(dj)
-  print ('calculating djj_viz assign')
-  djj_viz.assign(dj, annotate=False)
-  vtk_dj << djj_viz
-  print ("j = %f" % (j))
+	#fig.plot(dj)
+	print ('calculating djj_viz assign')
+	gam_viz.assign(m, annotate=False)
+	vtk_gam << gam_viz
+	djj_viz.assign(dj, annotate=False)
+	vtk_dj  << djj_viz
+	print ("j = %f" % (j))
 
 J_reduced = ReducedFunctional(
       functional  = Functional( J ),
@@ -373,25 +375,24 @@ class UpperBound(Expression):
          values[0] = Constant(1.0)
 
 # ------ OPTIMIZATION PROBLEM DEFINITION ------ #
-adjProblem = MinimizationProblem(
-   J_reduced,
-   #bounds = (0.0,1.0),
-   bounds         = [   interpolate(LowerBound(degree=1), U_mat),
-                        interpolate(UpperBound(degree=1), U_mat)  ],
-   #constraints    = [],
-   )
-parameters = {'maximum_iterations': OPTIMIZAT_MAX_ITE}
-adjSolver = IPOPTSolver(
-   adjProblem,
-   parameters     = parameters)
-
-alpha_opt = adjSolver.solve()
-# alpha_opt = minimize(J_reduced,
-#    method   =  'L-BFGS-B', 
-#    tol      =  2e-08,
-#    bounds   =  [  interpolate(LowerBound(degree=1), U_mat),
-#                   interpolate(UpperBound(degree=1), U_mat)  ],
-#    options  =  {"disp": True}                                     )
+# adjProblem = MinimizationProblem(
+#    J_reduced,
+#    #bounds = (0.0,1.0),
+#    bounds         = [   interpolate(LowerBound(degree=1), U_mat),
+#                         interpolate(UpperBound(degree=1), U_mat)  ],
+#    #constraints    = [],
+#    )
+# parameters = {'maximum_iterations': OPTIMIZAT_MAX_ITE}
+# adjSolver = IPOPTSolver(
+#    adjProblem,
+#    parameters     = parameters)
+# alpha_opt = adjSolver.solve()
+alpha_opt = minimize(J_reduced,
+   method   =  'L-BFGS-B',
+   tol      =  2e-08,
+   bounds   =  [  interpolate(LowerBound(degree=1), U_mat),
+                  interpolate(UpperBound(degree=1), U_mat)  ],
+   options  =  {"disp": True}                                     )
 alpha.assign(alpha_opt, annotate=False)
 foward('02.solution', annotate=False)
 
