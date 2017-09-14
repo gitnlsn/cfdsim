@@ -51,7 +51,7 @@ part1 = Rectangle(
 part2 = Circle(
    Point(mesh_Cx, mesh_Cy),
    mesh_Radius             )
-channel = part1 #-part2
+channel = part1 -part2
 mesh = generate_mesh(channel, mesh_res)
 
 # ------ BOUNDARIES ------ #
@@ -328,9 +328,10 @@ djj_viz = Function(U_mat); djj_viz.rename('gradient','gradient')
 #fig     = plot(alpha, title='Gradient', mode='color')
 
 # ------ FUNCTIONAL DEFINITION ------ #
-a_obj    = Constant(0.5)
+# a_obj    = Constant(0.5)
+# J        = inner(a_nxt -a_obj,a_nxt -a_obj)*dx(dx_to_opt)
 m        = Control(alpha)
-J        = inner(a_nxt -a_obj,a_nxt- a_obj)*dx(dx_to_opt)
+J        = inner(grad(a_nxt),grad(a_nxt))*dx(dx_to_opt)
 
 def post_eval(j, m):
    print ('Post_eval')
