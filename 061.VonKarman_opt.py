@@ -51,7 +51,7 @@ part1 = Rectangle(
 part2 = Circle(
    Point(mesh_Cx, mesh_Cy),
    mesh_Radius             )
-channel = part1 #-part2
+channel = part1 -part2
 mesh = generate_mesh(channel, mesh_res)
 
 # ------ BOUNDARIES ------ #
@@ -328,9 +328,10 @@ djj_viz = Function(U_mat); djj_viz.rename('gradient','gradient')
 #fig     = plot(alpha, title='Gradient', mode='color')
 
 # ------ FUNCTIONAL DEFINITION ------ #
-a_obj    = Constant(0.5)
+# a_obj    = Constant(0.5)
+# J        = inner(a_nxt -a_obj,a_nxt -a_obj)*dx(dx_to_opt)
 m        = Control(alpha)
-J        = inner(a_nxt -a_obj,a_nxt- a_obj)*dx(dx_to_opt)
+J        = inner(grad(a_nxt),grad(a_nxt))*dx(dx_to_opt)
 
 post_eval_sim = 1
 def post_eval(j, m):
@@ -338,7 +339,9 @@ def post_eval(j, m):
    gam_viz.assign(m, annotate=False)
    vtk_gam << gam_viz
    alpha.assign(m, annotate=False)
-   foward('post_eval_'+str(post_eval_sim), annotate=False, MAX_ITERATIONS=100)
+   #post_eval_sim = post_eval_sim +1
+   #if post_eval_sim%5 ==0:
+   foward('post_eval_'+str(post_eval_sim/5), annotate=False, MAX_ITERATIONS=300)
 
 def derivative_cb(j, dj, m):
   #fig.plot(dj)
