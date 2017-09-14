@@ -333,15 +333,12 @@ djj_viz = Function(U_mat); djj_viz.rename('gradient','gradient')
 m        = Control(alpha)
 J        = inner(grad(a_nxt),grad(a_nxt))*dx(dx_to_opt)
 
-post_eval_sim = 1
 def post_eval(j, m):
    print ('Post_eval')
    gam_viz.assign(m, annotate=False)
    vtk_gam << gam_viz
    alpha.assign(m, annotate=False)
-   #post_eval_sim = post_eval_sim +1
-   #if post_eval_sim%5 ==0:
-   foward('post_eval_'+str(post_eval_sim/5), annotate=False, MAX_ITERATIONS=300)
+   foward('post_eval', annotate=False, MAX_ITERATIONS=300)
 
 def derivative_cb(j, dj, m):
   #fig.plot(dj)

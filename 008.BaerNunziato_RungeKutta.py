@@ -14,7 +14,7 @@ from mshr      import *
 foldername = 'results_BaerNunziato'
 
 # ------ TMIXER GEOMETRY PARAMETERS ------ #
-mesh_res  = 50
+mesh_res  = 80
 mesh_P0   = 0.0
 mesh_DD   = 0.03          # largura
 mesh_L    = 0.10          # comprimento
@@ -24,14 +24,14 @@ mesh_Rad  = mesh_DD*0.2
 mesh_tol  = mesh_DD*0.01
 
 # ------ TMIXER GEOMETRY PARAMETERS ------ #
-cons_dt  = 0.0001
-cons_kk  = 1.0E-3
-cons_rh1 = 1.0E+3
-cons_rh2 = 1.2E+3
+cons_dt  = 0.001
+cons_kk  = 1.0E+1
+cons_rh1 = 1.00E+3
+cons_rh2 = 1.20E+3
 cons_mu1 = 1.0E-3
 cons_mu2 = 1.1E-3
-cons_vin = 1.0E-1
-cons_g   = 9.8E-0
+cons_vin = 1.0E-3
+cons_g   = 1.0E+1
 cons_dl  = 1.0E-6
 
 a_min = 0
@@ -137,17 +137,18 @@ u_intn = (un1*RH1*an1 + un2*RH2*an2)/(RH1*an1 + RH2*an2)
 u_intm = (um1*RH1*am1 + um2*RH2*am2)/(RH1*am1 + RH2*am2)
 p_int  = p1_md*a1_md + p2_md*a2_md
 
-F12   = MU1*MU2/(MU1+MU2)*(u2_md -u1_md)/dl +(an1*an2*grad(pn2 -pn1)+am1*am2*grad(pm2 -pm1))*0.5
-F21   = MU1*MU2/(MU1+MU2)*(u1_md -u2_md)/dl +(an1*an2*grad(pn1 -pn2)+am1*am2*grad(pm1 -pm2))*0.5
+# F12   = MU1*MU2/(MU1+MU2)*(u2_md -u1_md)/dl +(an1*an2*grad(pn2 -pn1)+am1*am2*grad(pm2 -pm1))*0.5
+# F21   = MU1*MU2/(MU1+MU2)*(u1_md -u2_md)/dl +(an1*an2*grad(pn1 -pn2)+am1*am2*grad(pm1 -pm2))*0.5
 
-# F12   = MU1*MU2/(MU1+MU2)*(u2_md -u1_md)/dl +p_int*grad(a1_md)
-# F21   = MU1*MU2/(MU1+MU2)*(u1_md -u2_md)/dl +p_int*grad(a2_md)
+F12   = MU1*MU2/(MU1+MU2)*(u2_md -u1_md)/dl +p_int*grad(a1_md)
+F21   = MU1*MU2/(MU1+MU2)*(u1_md -u2_md)/dl +p_int*grad(a2_md)
 
-F1 = a1_df *b1                                     *dx \
+F1 = \
+   + a1_df *b1                                     *dx \
    + inner(u_intn, grad(an1))*0.5 *b1              *dx \
    + inner(u_intm, grad(am1))*0.5 *b1              *dx \
-   + inner(an1*an2*grad(pn1 -pn2),grad(b1))*0.5*KK *dx \
-   + inner(am1*am2*grad(pm1 -pm2),grad(b1))*0.5*KK *dx \
+   - an1*an2*(pn1 -pn2)*b1*0.5*KK *dx \
+   - am1*am2*(pm1 -pm2)*b1*0.5*KK *dx \
    \
    + a1_df *q1                                     *dx \
    + div(an1*un1)*0.5 *q1                          *dx \
@@ -160,25 +161,34 @@ F1 = a1_df *b1                                     *dx \
    + RH1*inner(au1df,v1)                           *dx \
    + RH1*inner(div(an1*outer(un1,un1)),v1)*0.5     *dx \
    + RH1*inner(div(am1*outer(um1,um1)),v1)*0.5     *dx \
-   + inner((sigma1n*an1+MU1*outer(un1,grad(an1)))*0.5, grad(v1))              *dx \
-   + inner((sigma1m*am1+MU1*outer(um1,grad(am1)))*0.5, grad(v1))              *dx \
-   - inner(F12,v1)                                 *dx \
+   + inner(grad(an1*pn1),v1)*0.5                   *dx \
+   + inner(grad(am1*pm1),v1)*0.5                   *dx \
    - inner(RH1*a1_md*GG,v1)                        *dx \
+   - inner(F12,v1)                                 *dx \
    \
    + RH2*inner(au2df,v2)                           *dx \
    + RH2*inner(div(an2*outer(un2,un2)),v2)*0.5     *dx \
    + RH2*inner(div(am2*outer(um2,um2)),v2)*0.5     *dx \
-   + inner((sigma2n*an2+MU2*outer(un2,grad(an2)))*0.5, grad(v2))              *dx \
-   + inner((sigma2m*am2+MU2*outer(um2,grad(am2)))*0.5, grad(v2))              *dx \
-   - inner(F21,v2)                                 *dx \
+   + inner(grad(an2*pn2),v2)*0.5                   *dx \
+   + inner(grad(am2*pm2),v2)*0.5                   *dx \
    - inner(RH2*a2_md*GG,v2)                        *dx \
+   - inner(F21,v2)                                 *dx \
    \
+   #
+   # + inner((sigma1n*an1+MU1*outer(un1,grad(an1)))*0.5, grad(v1))              *dx \
+   # + inner((sigma1m*am1+MU1*outer(um1,grad(am1)))*0.5, grad(v1))              *dx \
+   # + inner((sigma2n*an2+MU2*outer(un2,grad(an2)))*0.5, grad(v2))              *dx \
+   # + inner((sigma2m*am2+MU2*outer(um2,grad(am2)))*0.5, grad(v2))              *dx \
    # - inner(dot(SIGMA1_DS,NN), v1)                  *ds(ds_outlet) \
    # - inner(dot(SIGMA2_DS,NN), v2)                  *ds(ds_outlet) \
    # + an1*an2*(RH1 -RH2)*inner(GG,HH)*b1            *ds(ds_outlet) \
    # + am1*am2*(RH1 -RH2)*inner(GG,HH)*b1            *ds(ds_outlet) \
 
 # ------ BOUNDARY CONDITIONS ------ #
+p_out1 = Expression('-rho*g*x[1]', rho=cons_rh1, g=cons_g, degree=1)
+p_out2 = Expression('-rho*g*x[1]', rho=cons_rh2, g=cons_g, degree=1)
+p_eql  = Expression('-rho*g*x[1]', rho=0.5*(cons_rh1+cons_rh2), g=cons_g, degree=1)
+
 p_out1 = Expression('-rho*g*x[1]', rho=cons_rh1, g=cons_g, degree=1)
 p_out2 = Expression('-rho*g*x[1]', rho=cons_rh2, g=cons_g, degree=1)
 p_eql  = Expression('-rho*g*x[1]', rho=0.5*(cons_rh1+cons_rh2), g=cons_g, degree=1)
@@ -194,10 +204,10 @@ BC1 = [
          DirichletBC(U.sub(p_u2), Constant((0,0)), walls    ),
          #DirichletBC(U.sub(p_u1), Constant((0,0)), outlet   ),
          #DirichletBC(U.sub(p_u2), Constant((0,0)), outlet   ),
-         DirichletBC(U.sub(p_p1), p_out1, inlet   ),
-         DirichletBC(U.sub(p_p2), p_out2, inlet   ),
-         DirichletBC(U.sub(p_p1), p_eql, outlet  ),
-         DirichletBC(U.sub(p_p2), p_eql, outlet  ),
+         DirichletBC(U.sub(p_p1), p_eql, inlet   ),
+         DirichletBC(U.sub(p_p2), p_eql, inlet   ),
+         # DirichletBC(U.sub(p_p1), p_eql, outlet  ),
+         # DirichletBC(U.sub(p_p2), p_eql, outlet  ),
       ] # end - BC #
 
 # ------ NON LINEAR PROBLEM DEFINITIONS ------ #
@@ -312,8 +322,8 @@ def RungeKutta4(ans_now, ans_nxt, nlSolver, DT):
 
 while( count_iteration < TRANSIENT_MAX_ITE ):
    count_iteration = count_iteration +1
-   #nlSolver1.solve()
-   RungeKutta4(ansm, ansn, nlSolver1, DT)
+   nlSolver1.solve()
+   #RungeKutta4(ansm, ansn, nlSolver1, DT)
    residual = assemble(inner(ansn -ansm, ansn -ansm)*dx)
    print ('Iteration: {}'.format(count_iteration) )
    print ('Residual : {}'.format(residual) )
