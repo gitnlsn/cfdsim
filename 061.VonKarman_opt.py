@@ -332,13 +332,12 @@ a_obj    = Constant(0.5)
 m        = Control(alpha)
 J        = inner(a_nxt -a_obj,a_nxt- a_obj)*dx(dx_to_opt)
 
-post_eval_sim = 1
 def post_eval(j, m):
    print ('Post_eval')
    gam_viz.assign(m, annotate=False)
    vtk_gam << gam_viz
    alpha.assign(m, annotate=False)
-   foward('post_eval_'+str(post_eval_sim), annotate=False, MAX_ITERATIONS=100)
+   foward('post_eval', annotate=False, MAX_ITERATIONS=300)
 
 def derivative_cb(j, dj, m):
   #fig.plot(dj)
