@@ -13,7 +13,7 @@ from dolfin_adjoint  import *
 
 # ------ SIMULATION PARAMETERS ------ #
 filename = 'results_VonKarman'
-mesh_res = 50
+mesh_res = 100
 mesh_0   = 0.0
 mesh_D   = 0.020
 mesh_L   = 0.060
