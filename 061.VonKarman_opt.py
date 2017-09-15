@@ -13,7 +13,7 @@ from dolfin_adjoint  import *
 
 # ------ SIMULATION PARAMETERS ------ #
 filename = 'results_VonKarman'
-mesh_res = 100
+mesh_res = 80
 mesh_0   = 0.0
 mesh_D   = 0.020
 mesh_L   = 0.060
@@ -338,21 +338,21 @@ def post_eval(j, m):
    gam_viz.assign(m, annotate=False)
    vtk_gam << gam_viz
    alpha.assign(m, annotate=False)
-   foward('post_eval', annotate=False, MAX_ITERATIONS=300)
 
 def derivative_cb(j, dj, m):
-	#fig.plot(dj)
-	print ('calculating djj_viz assign')
-	gam_viz.assign(m, annotate=False)
-	vtk_gam << gam_viz
-	djj_viz.assign(dj, annotate=False)
-	vtk_dj  << djj_viz
-	print ("j = %f" % (j))
+   #fig.plot(dj)
+   print ('calculating djj_viz assign')
+   gam_viz.assign(m, annotate=False)
+   vtk_gam << gam_viz
+   djj_viz.assign(dj, annotate=False)
+   vtk_dj  << djj_viz
+   print ("j = %f" % (j))
+   foward('post_eval', annotate=False, MAX_ITERATIONS=300)
 
 J_reduced = ReducedFunctional(
       functional  = Functional( J ),
       controls    = m,
-      eval_cb_post       = post_eval,
+      #eval_cb_post       = post_eval,
       derivative_cb_post = derivative_cb
       )
 

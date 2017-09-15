@@ -14,7 +14,7 @@ from mshr      import *
 foldername = 'results_BaerNunziato'
 
 # ------ TMIXER GEOMETRY PARAMETERS ------ #
-mesh_res  = 80
+mesh_res  = 50
 mesh_P0   = 0.0
 mesh_DD   = 0.03          # largura
 mesh_L    = 0.10          # comprimento
@@ -49,6 +49,9 @@ part1 = Rectangle(
 part2 = Circle(
    Point(mesh_Cx, mesh_Cy),
    mesh_Rad                   )
+part3 = Rectangle(
+   Point(mesh_L -mesh_Rad*5, mesh_Cy -mesh_Rad),
+   Point(mesh_L,           mesh_Cy +mesh_Rad)  )
 channel = part1 #-part2
 mesh = generate_mesh(channel, mesh_res)
 
