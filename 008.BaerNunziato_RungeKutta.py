@@ -25,12 +25,12 @@ mesh_tol  = mesh_DD*0.01
 
 # ------ TMIXER GEOMETRY PARAMETERS ------ #
 cons_dt  = 0.0001
-cons_kk  = 1.0E+0
+cons_kk  = 1.0E-3
 cons_rh1 = 1.00E+3
-cons_rh2 = 1.01E+3
+cons_rh2 = 1.20E+3
 cons_mu1 = 1.0E-3
 cons_mu2 = 1.1E-3
-cons_vin = 1.0E-2
+cons_vin = 1.0E-4
 cons_g   = 1.0E+1
 cons_dl  = 1.0E-6
 
@@ -153,6 +153,8 @@ F1 = \
    + a1_df *b1                                     *dx \
    + inner(u_intn, grad(an1))*0.5 *b1              *dx \
    + inner(u_intm, grad(am1))*0.5 *b1              *dx \
+   + inner(grad(p1_md -p2_md),grad(b1))*0.5*KK *dx \
+   + inner(grad(p1_md -p2_md),grad(b1))*0.5*KK *dx \
    \
    + a1_df *q1                                     *dx \
    + div(an1*un1)*0.5 *q1                          *dx \
@@ -178,8 +180,6 @@ F1 = \
    - inner(RH2*a2_md*GG,v2)                        *dx \
    - inner(F21,v2)                                 *dx \
    \
-   # - an1*an2*(p_int)*b1*0.5*KK *dx \
-   # - am1*am2*(p_int)*b1*0.5*KK *dx \
    #
    # + inner(GG,
    #      (RH1*an1*un1 -RH1*am1*um1)/DT
