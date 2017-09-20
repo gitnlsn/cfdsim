@@ -16,21 +16,21 @@ foldername = 'results_BaerNunziato'
 # ------ TMIXER GEOMETRY PARAMETERS ------ #
 mesh_res  = 50
 mesh_P0   = 0.0
-mesh_DD   = 0.03          # largura
-mesh_L    = 0.10          # comprimento
+mesh_DD   = 0.04          # largura
+mesh_L    = 0.20          # comprimento
 mesh_Cx   = mesh_L *0.25       # initial circle
 mesh_Cy   = mesh_DD*0.5
 mesh_Rad  = mesh_DD*0.2
 mesh_tol  = mesh_DD*0.01
 
 # ------ TMIXER GEOMETRY PARAMETERS ------ #
-cons_dt  = 0.001
-cons_kk  = 1.0E+1
+cons_dt  = 0.0001
+cons_kk  = 1.0E+0
 cons_rh1 = 1.00E+3
-cons_rh2 = 1.20E+3
+cons_rh2 = 1.01E+3
 cons_mu1 = 1.0E-3
 cons_mu2 = 1.1E-3
-cons_vin = 1.0E-3
+cons_vin = 1.0E-2
 cons_g   = 1.0E+1
 cons_dl  = 1.0E-6
 
@@ -50,15 +50,15 @@ part2 = Circle(
    Point(mesh_Cx, mesh_Cy),
    mesh_Rad                   )
 part3 = Rectangle(
-   Point(mesh_L -mesh_Rad*5, mesh_Cy -mesh_Rad),
-   Point(mesh_L,           mesh_Cy +mesh_Rad)  )
+   Point(mesh_L -mesh_Rad*5,  mesh_Cy -mesh_Rad),
+   Point(mesh_L,              mesh_Cy +mesh_Rad)  )
 channel = part1 #-part2
 mesh = generate_mesh(channel, mesh_res)
 
 # ------ BOUNDARIES DEFINITION ------ #
 inlet  = '( (x[0]=='+str(mesh_P0)+') && (x[1]>='+str(0.0*mesh_DD)+') && (x[1]<='+str(1.0*mesh_DD)+') )'
 outlet = '( (x[0]=='+str(mesh_L )+') && (x[1]>='+str(0.0*mesh_DD)+') && (x[1]<='+str(1.0*mesh_DD)+') )'
-walls  = '( (x[1]=='+str(mesh_P0)+') || (x[1]=='+str(mesh_DD)+') )'
+walls  = '( (x[1]=='+str(mesh_P0)+') || (x[1]=='+str(1.0*mesh_DD)+') )'
 
 ds_inlet, ds_walls, ds_outlet = 1,2,3
 
@@ -140,18 +140,19 @@ u_intn = (un1*RH1*an1 + un2*RH2*an2)/(RH1*an1 + RH2*an2)
 u_intm = (um1*RH1*am1 + um2*RH2*am2)/(RH1*am1 + RH2*am2)
 p_int  = p1_md*a1_md + p2_md*a2_md
 
+pgrad1 = ( (pn1*an1+pn2*an2)*grad(an1) +(pm1*am1+pm2*am2)*grad(am1) )*0.5
+pgrad2 = ( (pn1*an1+pn2*an2)*grad(an2) +(pm1*am1+pm2*am2)*grad(am2) )*0.5
+
 # F12   = MU1*MU2/(MU1+MU2)*(u2_md -u1_md)/dl +(an1*an2*grad(pn2 -pn1)+am1*am2*grad(pm2 -pm1))*0.5
 # F21   = MU1*MU2/(MU1+MU2)*(u1_md -u2_md)/dl +(an1*an2*grad(pn1 -pn2)+am1*am2*grad(pm1 -pm2))*0.5
 
-F12   = MU1*MU2/(MU1+MU2)*(u2_md -u1_md)/dl +p_int*grad(a1_md)
-F21   = MU1*MU2/(MU1+MU2)*(u1_md -u2_md)/dl +p_int*grad(a2_md)
+F12   = MU1*MU2/(MU1+MU2)*(u2_md -u1_md)/dl +pgrad1
+F21   = MU1*MU2/(MU1+MU2)*(u1_md -u2_md)/dl +pgrad2
 
 F1 = \
    + a1_df *b1                                     *dx \
    + inner(u_intn, grad(an1))*0.5 *b1              *dx \
    + inner(u_intm, grad(am1))*0.5 *b1              *dx \
-   - an1*an2*(pn1 -pn2)*b1*0.5*KK *dx \
-   - am1*am2*(pm1 -pm2)*b1*0.5*KK *dx \
    \
    + a1_df *q1                                     *dx \
    + div(an1*un1)*0.5 *q1                          *dx \
@@ -177,6 +178,17 @@ F1 = \
    - inner(RH2*a2_md*GG,v2)                        *dx \
    - inner(F21,v2)                                 *dx \
    \
+   # - an1*an2*(p_int)*b1*0.5*KK *dx \
+   # - am1*am2*(p_int)*b1*0.5*KK *dx \
+   #
+   # + inner(GG,
+   #      (RH1*an1*un1 -RH1*am1*um1)/DT
+   #    + (RH2*an2*un2 -RH2*am2*um2)/DT
+   #    + div(outer(an1*un1, un1)+ outer(am1*um1, um1) )*RH1*0.5
+   #    + div(outer(an2*un2, un2)+ outer(am2*um2, um2) )*RH2*0.5
+   #    + grad( (an1*pn1+am1*pm1)*0.5 +(an2*pn2+am2*pm2)*0.5 )
+   #    # + F21 -F12
+   #    ) *b1 *dx \
    #
    # + inner((sigma1n*an1+MU1*outer(un1,grad(an1)))*0.5, grad(v1))              *dx \
    # + inner((sigma1m*am1+MU1*outer(um1,grad(am1)))*0.5, grad(v1))              *dx \
@@ -192,23 +204,21 @@ p_out1 = Expression('-rho*g*x[1]', rho=cons_rh1, g=cons_g, degree=1)
 p_out2 = Expression('-rho*g*x[1]', rho=cons_rh2, g=cons_g, degree=1)
 p_eql  = Expression('-rho*g*x[1]', rho=0.5*(cons_rh1+cons_rh2), g=cons_g, degree=1)
 
-p_out1 = Expression('-rho*g*x[1]', rho=cons_rh1, g=cons_g, degree=1)
-p_out2 = Expression('-rho*g*x[1]', rho=cons_rh2, g=cons_g, degree=1)
-p_eql  = Expression('-rho*g*x[1]', rho=0.5*(cons_rh1+cons_rh2), g=cons_g, degree=1)
-
 p_aa,p_u1,p_u2,p_p1,p_p2 = 0,1,2,3,4
 BC1 = [
          DirichletBC(U.sub(p_aa), Constant(     0.5   ), inlet   ),
          DirichletBC(U.sub(p_u1), Constant((u_inlet,0)), inlet   ),
          DirichletBC(U.sub(p_u2), Constant((u_inlet,0)), inlet   ),
-         #DirichletBC(U.sub(p_u1), Constant((0,0)), inlet    ),
-         #DirichletBC(U.sub(p_u2), Constant((0,0)), inlet    ),
+         # DirichletBC(U.sub(p_u1), Constant((0,0)), inlet    ),
+         # DirichletBC(U.sub(p_u2), Constant((0,0)), inlet    ),
          DirichletBC(U.sub(p_u1), Constant((0,0)), walls    ),
          DirichletBC(U.sub(p_u2), Constant((0,0)), walls    ),
-         #DirichletBC(U.sub(p_u1), Constant((0,0)), outlet   ),
-         #DirichletBC(U.sub(p_u2), Constant((0,0)), outlet   ),
-         DirichletBC(U.sub(p_p1), p_eql, inlet   ),
-         DirichletBC(U.sub(p_p2), p_eql, inlet   ),
+         # DirichletBC(U.sub(p_u1), Constant((0,0)), outlet   ),
+         # DirichletBC(U.sub(p_u2), Constant((0,0)), outlet   ),
+         # DirichletBC(U.sub(p_p1), Constant(0), 'x[1]=='+str(mesh_DD)   ),
+         # DirichletBC(U.sub(p_p2), Constant(0), 'x[1]=='+str(mesh_DD)   ),
+         DirichletBC(U.sub(p_p1), p_eql, outlet  ),
+         DirichletBC(U.sub(p_p2), p_eql, outlet  ),
          # DirichletBC(U.sub(p_p1), p_eql, outlet  ),
          # DirichletBC(U.sub(p_p2), p_eql, outlet  ),
       ] # end - BC #
@@ -252,6 +262,8 @@ vtk_u2  = File(foldername+'/velocity_mean2.pvd')
 vtk_p1  = File(foldername+'/pressure_mean1.pvd')
 vtk_p2  = File(foldername+'/pressure_mean2.pvd')
 vtk_dp  = File(foldername+'/pressure_difference.pvd')
+vtk_pps = File(foldername+'/pressure_sums.pvd')
+vtk_ppd = File(foldername+'/pressure_sumd.pvd')
 
 def save_results(a1,a2,u1,u2,p1,p2):
    aa_viz  = project(a1   , U_vol); aa_viz.rename('Fraction','Fraction');  vtk_aa  << aa_viz
@@ -263,7 +275,9 @@ def save_results(a1,a2,u1,u2,p1,p2):
    u2_viz  = project(u2*a2, U_vel); u2_viz.rename('velocity mean 2','velocity mean 2');  vtk_u2  << u2_viz
    p1_viz  = project(p1*a1, U_prs); p1_viz.rename('pressure mean 1','pressure mean 1');  vtk_p1  << p1_viz
    p2_viz  = project(p2*a2, U_prs); p2_viz.rename('pressure mean 2','pressure mean 2');  vtk_p2  << p2_viz
-   dp_viz  = project(p1-p2, U_prs); dp_viz.rename('pressure difference','pressure difference');  vtk_dp  << dp_viz
+   dp_viz  = project(p1-p2, U_prs); dp_viz.rename('pressure difference','pressure difference'); vtk_dp  << dp_viz
+   pps_viz = project(p1*a1+p2*a2, U_prs); pps_viz.rename('pressure sum s','pressure sum s');     vtk_pps  << pps_viz
+   ppd_viz = project(a1*(p1-RH1*inner(GG,HH))+a2*(p2-RH2*inner(GG,HH)), U_prs); ppd_viz.rename('pressure sum','pressure sum'); vtk_ppd  << ppd_viz
 
 def plot_all():
    plot(a1,title='volume_fraction')
@@ -323,10 +337,30 @@ def RungeKutta4(ans_now, ans_nxt, nlSolver, DT):
    ans_now.assign(ans_aux)
    ans_nxt.assign(project( ans_aux+ (RK1+RK2*2.0+RK3*2.0+RK4)/6.0, U))
 
+def RungeKutta2(ans_now, ans_nxt, nlSolver, DT):
+   ans_aux  = Function(U)
+   ans_aux.assign(ans_now)
+   RK1      = Function(U)
+   RK2      = Function(U)
+   RK3      = Function(U)
+   RK4      = Function(U)
+   # 1st iteration
+   ans_now.assign( ans_aux )
+   nlSolver.solve()
+   RK1.assign( ans_nxt -ans_now )
+   # 2nd iteration
+   ans_now.assign( ans_aux+RK1/2.0 )
+   nlSolver.solve()
+   RK2.assign( ans_nxt -ans_now )
+   # return RungeKutta estimate
+   ans_now.assign(ans_aux)
+   ans_nxt.assign(project( ans_aux+ RK2, U))
+
 while( count_iteration < TRANSIENT_MAX_ITE ):
    count_iteration = count_iteration +1
-   nlSolver1.solve()
+   #nlSolver1.solve()
    #RungeKutta4(ansm, ansn, nlSolver1, DT)
+   RungeKutta2(ansm, ansn, nlSolver1, DT)
    residual = assemble(inner(ansn -ansm, ansn -ansm)*dx)
    print ('Iteration: {}'.format(count_iteration) )
    print ('Residual : {}'.format(residual) )
