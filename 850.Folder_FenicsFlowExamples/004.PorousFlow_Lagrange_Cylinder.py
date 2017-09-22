@@ -1,7 +1,6 @@
 '''
 NELSON KENZO TAMASHIRO
 22 SEPTEMBER 2017
-TENTATIVA DE SIMULAR SEPARACAO POR EQUACIONAMENTO DERIVADO DE LAGRANGEANO
 
 '''
 
@@ -49,7 +48,7 @@ vv    = as_vector ([vx,vy])
 
 class InitialPorosity(Expression):
    def eval(self, value, x):
-      tol = 1E-9
+      tol = 1E-6
       is_obstacle = (x[0] -mesh_Cx)**2 + (x[1] -mesh_Cy)**2 <= mesh_Radius**2
       if is_obstacle:
          value[0] = 1.0 -tol
@@ -67,10 +66,10 @@ sym_gradu   = grad(uu)+grad(uu).T
 sigma       = MU1*sym_gradu +pp*Identity(len(uu))
 GG          = as_vector([ Constant(0), Constant(-cons_gg) ])
 
-F  = inner(MU1*gam*grad(uu),grad(vv))                *dx \
+F  = inner(MU1*gam*grad(uu),grad(vv))                 *dx \
    + inner(MU1*N05*outer(uu,grad(gam)),grad(vv))      *dx \
    - inner(pp,div(vv*gam))                            *dx \
-   + inner(MU1*dot(grad(uu),grad(gam)), vv)         *dx \
+   + inner(MU1*N05*dot(grad(uu),grad(gam)), vv)       *dx \
    + inner(div(uu*gam),qq)                            *dx
 
 p_ux,p_uy,p_pp = 0,1,2
