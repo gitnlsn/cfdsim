@@ -9,11 +9,11 @@ from fenics import *
 from mshr   import *
 
 cons_vin = 1.0E-2
-cons_rh1 = 1.0E+0
-cons_rh2 = 1.0E+0
-cons_mu1 = 1.0E-0
-cons_mu2 = 1.0E-0
-cons_gg  = 0.0E-1
+cons_rh1 = 1.0E+3
+cons_rh2 = 1.1E+3
+cons_mu1 = 1.0E-3
+cons_mu2 = 1.1E-3
+cons_gg  = 1.0E-3
 
 mesh_res = 50
 mesh_P0  = 0.0
@@ -86,8 +86,10 @@ def F_mmt(a1,a2,u1,u2,p1,p2,mu1,mu2,rh1,rh2,tt):
          + inner( tau_gradd(u2,a1,mu2)/N4,   grad(tt) ) *dx \
          + inner( tau_inner(u2,a1,mu2)/N4,   tt       ) *dx \
          \
-         + inner( (grad(p1)+rh1*GG)*(a1+a2/N2), tt    ) *dx \
-         + inner( (grad(p2)+rh2*GG)*(a1/N2   ), tt    ) *dx
+         - inner( p1, div(tt*(a1+a2/N2))    ) *dx \
+         + inner( rh1*GG*(a1+a2/N2), tt    ) *dx \
+         - inner( p2, div(tt*(a1/N2   ))    ) *dx \
+         + inner( rh2*GG*(a1/N2   ), tt    ) *dx
 
 def F_eng(a1,a2,u1,u2,p1,p2,mu1,mu2,rh1,rh2,tt):
    return  inner( mu1*grad(u1),              grad(u1) )/N2 *tt             *dx \
@@ -111,7 +113,7 @@ a_in = Constant(0.5)
 p_u1,p_u2,p_p1,p_p2,p_aa = 0,1,2,3,4
 BC = [
       DirichletBC(U.sub(p_u1), u_in, inlet),
-      DirichletBC(U.sub(p_u2), u_00, inlet),
+      DirichletBC(U.sub(p_u2), u_in, inlet),
       DirichletBC(U.sub(p_aa), a_in, inlet),
       DirichletBC(U.sub(p_u1), u_00, walls),
       DirichletBC(U.sub(p_u2), u_00, walls),
@@ -120,9 +122,9 @@ BC = [
       # DirichletBC(U.sub(p_pp), Constant(0        ), outlet),
       ]
 
-cons_tol = 1E-3
+cons_tol = 1.0E-9
 v_max = cons_vin*20
-p_max = 1E2
+p_max = 1E5
 a_min = 0.0 +cons_tol
 a_max = 1.0 -cons_tol
 
@@ -173,9 +175,11 @@ assign(ans.sub(p_p2 ), project(Constant(0.0E+0), FunctionSpace(mesh, FE_P) ) )
 assign(ans.sub(p_aa ), project(a_init, FunctionSpace(mesh, FE_A) ) )
 
 nlSolver.solve()
-# plot(u1, title='velocity')
-# plot(p1, title='pressure')
-# plot(a1, title='concentration')
-# interactive()
+plot(u1, title='velocity')
+plot(p1, title='pressure')
+plot(u2, title='velocity')
+plot(p2, title='pressure')
+plot(a1, title='concentration')
+interactive()
 
 

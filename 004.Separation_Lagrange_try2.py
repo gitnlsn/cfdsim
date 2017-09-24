@@ -8,12 +8,12 @@ TENTATIVA DE SIMULAR SEPARACAO POR EQUACIONAMENTO DERIVADO DE LAGRANGEANO
 from fenics import *
 from mshr   import *
 
-cons_vin = 1.0E-2
-cons_rh1 = 1.0E+0
-cons_rh2 = 1.0E+0
-cons_mu1 = 1.0E-0
-cons_mu2 = 1.0E-0
-cons_gg  = 0.0E-1
+cons_vin = 1.0E-3
+cons_rh1 = 1.00E+0
+cons_rh2 = 1.10E+0
+cons_mu1 = 1.00E-0
+cons_mu2 = 1.00E-0
+cons_gg  = 1.0E-4
 
 mesh_res = 50
 mesh_P0  = 0.0
@@ -67,12 +67,14 @@ def F_mmt(u1,a1,u2,a2,p1,p2,mu1,mu2,rh1,rh2,tt):
          + inner( mu1*outer(u1,grad(a1*a2) ),   grad(tt) )/N2  *dx \
          + inner( mu1*grad(u2)*a2*a2,           grad(tt) )/N2  *dx \
          + inner( mu1*outer(u2,grad(a2*a2) ),   grad(tt) )/N2  *dx \
-         + inner( mu1*dot(grad(a1),grad(u1)),        tt  )/N2  *dx \
-         + inner( mu1*dot(grad(a1*a2),grad(u1)),     tt  )/N2  *dx \
+         + inner( mu1*dot(grad(a1),grad(u1).T),        tt  )/N2  *dx \
+         + inner( mu1*dot(grad(a1*a2),grad(u1).T),     tt  )/N2  *dx \
          + inner( mu2*grad(u2)*a1*a1,           grad(tt) )/N2  *dx \
-         + inner( mu2*dot(grad(a1*a1),grad(u2)),     tt  )/N2  *dx \
-         + inner( (grad(p1)+rh1*GG)*a1*(N1+a2),      tt  )     *dx \
-         + inner( (grad(p2)+rh2*GG)*a1*a1,           tt  )     *dx
+         + inner( mu2*dot(grad(a1*a1),grad(u2).T),     tt  )/N2  *dx \
+         + inner( p1, div(tt*a1*(N1+a2))  )     *dx \
+         + inner( rh1*GG*a1*(N1+a2),      tt  )     *dx \
+         + inner( p2, div(tt*a1*a1)  )     *dx \
+         + inner( rh2*GG*a1*a1,           tt  )     *dx
 
 def F_eng(u1,a1,u2,a2,p1,p2,mu1,mu2,rh1,rh2,tt):
    return  inner(  mu1*grad(u1),grad(u1) )/N2 *tt                       *dx \
@@ -91,10 +93,10 @@ def F_eng(u1,a1,u2,a2,p1,p2,mu1,mu2,rh1,rh2,tt):
          + inner( (grad(p2)+rh2*GG),(u1-u2)*(    N2*a1) )*tt            *dx
 
 F  = F_cct(u1,a1,u2,a2,q1) \
-   + F_cct(u2,a2,u1,a1,q1) \
+   + F_cct(u2,a2,u1,a1,q2) \
    + F_mmt(u1,a1,u2,a2,p1,p2,MU1,MU2,RH1,RH2,v1) \
    + F_mmt(u2,a2,u1,a1,p2,p1,MU2,MU1,RH2,RH1,v2) \
-   + F_eng(u2,a2,u1,a1,p2,p1,MU1,MU2,RH1,RH2,b1)
+   + F_eng(u1,a1,u2,a2,p1,p2,MU1,MU2,RH1,RH2,b1)
 
 u_in = Constant((cons_vin, 0))
 u_00 = Constant((0, 0))
@@ -103,7 +105,7 @@ a_in = Constant(0.5)
 p_u1,p_u2,p_p1,p_p2,p_aa = 0,1,2,3,4
 BC = [
       DirichletBC(U.sub(p_u1), u_in, inlet),
-      DirichletBC(U.sub(p_u2), u_00, inlet),
+      DirichletBC(U.sub(p_u2), u_in, inlet),
       DirichletBC(U.sub(p_aa), a_in, inlet),
       DirichletBC(U.sub(p_u1), u_00, walls),
       DirichletBC(U.sub(p_u2), u_00, walls),
@@ -112,9 +114,19 @@ BC = [
       # DirichletBC(U.sub(p_pp), Constant(0        ), outlet),
       ]
 
-cons_tol = 1E-3
-v_max = cons_vin*20
-p_max = 1E2
+a_init = Expression('0.5 +0.001*cos(x[0]*1000)+0.001*cos(x[1]*1000)', degree=2)
+
+assign(ans.sub(p_u1 ), project(Constant((cons_vin*1.1,-cons_vin)), FunctionSpace(mesh, FE_V) ) )
+assign(ans.sub(p_u2 ), project(Constant((cons_vin*0.9,+cons_vin)), FunctionSpace(mesh, FE_V) ) )
+assign(ans.sub(p_p1 ), project(Constant(0.0E+0), FunctionSpace(mesh, FE_P) ) )
+assign(ans.sub(p_p2 ), project(Constant(0.0E+0), FunctionSpace(mesh, FE_P) ) )
+assign(ans.sub(p_aa ), project(a_init, FunctionSpace(mesh, FE_A) ) )
+
+# solve(F==0, ans, BC)
+
+cons_tol = 1.0E-3
+v_max = 100
+p_max = 100
 a_min = 0.0 +cons_tol
 a_max = 1.0 -cons_tol
 
@@ -134,7 +146,7 @@ prm["maximum_iterations"            ] = 15
 prm["maximum_residual_evaluations"  ] = 20000
 prm["absolute_tolerance"            ] = 8.0E-13
 prm["relative_tolerance"            ] = 6.0E-13
-prm["method"                        ] = "vinewtonrsls" # vinewtonrsls, vinewtonssls
+prm["method"                        ] = "vinewtonssls" # vinewtonrsls, vinewtonssls
 prm["linear_solver"                 ] = "mumps"
 # bicgstab       |  Biconjugate gradient stabilized method                      
 # cg             |  Conjugate gradient method                                   
@@ -155,14 +167,6 @@ prm["line_search"                   ] = "basic" # "basic", "bt", "l2", "cp", "nl
 #prm["lu_solver"                     ]
 
 #set_log_level(PROGRESS)
-
-a_init = Expression('0.5 +0.01*cos(x[0]*1000)+0.01*cos(x[1]*1000)', degree=2)
-
-assign(ans.sub(p_u1 ), project(Constant((cons_vin*1.1,0)), FunctionSpace(mesh, FE_V) ) )
-assign(ans.sub(p_u2 ), project(Constant((cons_vin*0.9,0)), FunctionSpace(mesh, FE_V) ) )
-assign(ans.sub(p_p1 ), project(Constant(0.0E+0), FunctionSpace(mesh, FE_P) ) )
-assign(ans.sub(p_p2 ), project(Constant(0.0E+0), FunctionSpace(mesh, FE_P) ) )
-assign(ans.sub(p_aa ), project(a_init, FunctionSpace(mesh, FE_A) ) )
 
 nlSolver.solve()
 # plot(u1, title='velocity')
