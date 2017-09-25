@@ -8,12 +8,12 @@ TENTATIVA DE SIMULAR SEPARACAO POR EQUACIONAMENTO DERIVADO DE LAGRANGEANO
 from fenics import *
 from mshr   import *
 
-cons_vin = 1.0E-2
+cons_vin = 1.0E-1
 cons_rh1 = 1.0E+3
 cons_rh2 = 1.1E+3
 cons_mu1 = 1.0E-3
 cons_mu2 = 1.1E-3
-cons_gg  = 1.0E-3
+cons_gg  = 1.0E-1
 
 mesh_res = 50
 mesh_P0  = 0.0
@@ -119,12 +119,13 @@ BC = [
       DirichletBC(U.sub(p_u2), u_00, walls),
       # DirichletBC(U.sub(p_ux), Constant(0        ), obsts),
       # DirichletBC(U.sub(p_uy), Constant(0        ), obsts),
-      # DirichletBC(U.sub(p_pp), Constant(0        ), outlet),
+      # DirichletBC(U.sub(p_p1), Constant(0        ), outlet),
+      # DirichletBC(U.sub(p_p2), Constant(0        ), outlet),
       ]
 
 cons_tol = 1.0E-9
 v_max = cons_vin*20
-p_max = 1E5
+p_max = 1E3
 a_min = 0.0 +cons_tol
 a_max = 1.0 -cons_tol
 
@@ -175,10 +176,10 @@ assign(ans.sub(p_p2 ), project(Constant(0.0E+0), FunctionSpace(mesh, FE_P) ) )
 assign(ans.sub(p_aa ), project(a_init, FunctionSpace(mesh, FE_A) ) )
 
 nlSolver.solve()
-plot(u1, title='velocity')
-plot(p1, title='pressure')
-plot(u2, title='velocity')
-plot(p2, title='pressure')
+plot(u1, title='velocity 1')
+plot(p1, title='pressure 1')
+plot(u2, title='velocity 2')
+plot(p2, title='pressure 2')
 plot(a1, title='concentration')
 interactive()
 
