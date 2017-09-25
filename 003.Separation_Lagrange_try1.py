@@ -8,12 +8,12 @@ TENTATIVA DE SIMULAR SEPARACAO POR EQUACIONAMENTO DERIVADO DE LAGRANGEANO
 from fenics import *
 from mshr   import *
 
-cons_vin = 1.0E-1
+cons_vin = 1.0E-2
 cons_rh1 = 1.0E+3
 cons_rh2 = 1.1E+3
 cons_mu1 = 1.0E-3
 cons_mu2 = 1.1E-3
-cons_gg  = 1.0E-1
+cons_gg  = 1.0E-5
 
 mesh_res = 50
 mesh_P0  = 0.0
@@ -98,7 +98,8 @@ def F_eng(a1,a2,u1,u2,p1,p2,mu1,mu2,rh1,rh2,tt):
          - inner( mu2*dot(u2,grad(u2).T),    grad(tt) )/N2                 *dx \
          - inner( mu1*grad(u1)-mu2*grad(u2), grad(u_I))/N2*tt              *dx \
          - inner( dot( u_I,mu1*grad(u1).T-mu2*grad(u2).T ), grad(tt) )/N2  *dx \
-         + inner( grad(p1+p2)+(rh1+rh2)*GG, u1-u2)/N2 *tt                  *dx
+         + inner( grad(p1+p2)+(rh1+rh2)*GG, u1-u2)/N2 *tt                  *dx \
+         + inner( grad(a1), grad(tt) ) *Constant(1E-8)                     *dx
 
 F  = F_ctt(u1,a1,u_I,a2,q1)               \
    + F_ctt(u2,a2,u_I,a1,q2)               \

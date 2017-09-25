@@ -8,12 +8,12 @@ TENTATIVA DE SIMULAR SEPARACAO POR EQUACIONAMENTO DERIVADO DE LAGRANGEANO
 from fenics import *
 from mshr   import *
 
-cons_vin = 1.0E-3
+cons_vin = 1.0E-5
 cons_rh1 = 1.0E+3
-cons_rh2 = 1.1E+3
+cons_rh2 = 1.2E+3
 cons_mu1 = 1.0E-3
-cons_mu2 = 1.0E-3
-cons_gg  = 1.0E-9
+cons_mu2 = 1.2E-3
+cons_gg  = 1.0E-4
 
 mesh_res = 50
 mesh_P0  = 0.0
@@ -71,9 +71,9 @@ def F_mmt(u1,a1,u2,a2,p1,p2,mu1,mu2,rh1,rh2,tt):
          + inner( mu1*dot(grad(a1*a2),grad(u1).T),   tt  )/N2  *dx \
          + inner( mu2*grad(u2)*a1*a1,           grad(tt) )/N2  *dx \
          + inner( mu2*dot(grad(a1*a1),grad(u2).T),   tt  )/N2  *dx \
-         + inner( p1, div(tt*a1*(N1+a2))                 )     *dx \
+         - inner( p1, div(tt*a1*(N1+a2))                 )     *dx \
          + inner( rh1*GG*a1*(N1+a2),                 tt  )     *dx \
-         + inner( p2, div(tt*a1*a1)                      )     *dx \
+         - inner( p2, div(tt*a1*a1)                      )     *dx \
          + inner( rh2*GG*a1*a1,                      tt  )     *dx
 
 def F_eng(u1,a1,u2,a2,p1,p2,mu1,mu2,rh1,rh2,tt):
@@ -84,14 +84,14 @@ def F_eng(u1,a1,u2,a2,p1,p2,mu1,mu2,rh1,rh2,tt):
          + inner(  mu1*grad(u1),grad(u1)*(N1 -N2*a1) )/N2 *tt           *dx \
          + inner(  mu2*grad(u2),grad(u2)*(N1 -N2*a1) )/N2 *tt           *dx \
          + inner(  mu1*dot(u1,grad(u1).T)
-                  +mu2*dot(u2,grad(u2).T), grad(tt)*(N1 -N2*a1) )/N2    *dx \
+                  +mu2*dot(u2,grad(u2).T), grad(tt*(N1 -N2*a1)) )/N2    *dx \
          + inner(  mu1*grad(u1),grad(u2)*(-N2 -N2*a1) )/N2 *tt          *dx \
          + inner(  mu2*grad(u1),grad(u2)*(     N2*a1) )/N2 *tt          *dx \
-         + inner(  mu1*dot(u2,grad(u1).T), grad(tt)*(-N2 -N2*a1) )/N2   *dx \
-         + inner(  mu2*dot(u1,grad(u2).T), grad(tt)*(     N2*a1) )/N2   *dx \
+         + inner(  mu1*dot(u2,grad(u1).T), grad(tt*(-N2 -N2*a1)) )/N2   *dx \
+         + inner(  mu2*dot(u1,grad(u2).T), grad(tt*(     N2*a1)) )/N2   *dx \
          + inner( (grad(p1)+rh1*GG),(u1-u2)*(N2 -N2*a1) )*tt            *dx \
          + inner( (grad(p2)+rh2*GG),(u1-u2)*(    N2*a1) )*tt            *dx \
-         + inner( grad(a1), grad(tt) ) *1E-6 *dx
+         + inner( grad(a1), grad(tt) ) *Constant(1E-1)                  *dx
 
 F  = F_cct(u1,a1,u2,a2,q1) \
    + F_cct(u2,a2,u1,a1,q2) \
@@ -99,9 +99,12 @@ F  = F_cct(u1,a1,u2,a2,q1) \
    + F_mmt(u2,a2,u1,a1,p2,p1,MU2,MU1,RH2,RH1,v2) \
    + F_eng(u1,a1,u2,a2,p1,p2,MU1,MU2,RH1,RH2,b1)
 
-u_in = Constant((cons_vin, 0))
-u_00 = Constant((0, 0))
-a_in = Constant(0.5)
+u_in     = Constant((cons_vin, 0))
+u_00     = Constant((0, 0))
+a_in     = Constant(0.5)
+p_00     = Constant(0.0)
+p_out1   = Expression('-rho*g*x[1]',rho=cons_rh1, g=cons_gg, degree=2)
+p_out2   = Expression('-rho*g*x[1]',rho=cons_rh2, g=cons_gg, degree=2)
 
 p_u1,p_u2,p_p1,p_p2,p_aa = 0,1,2,3,4
 BC = [
@@ -112,21 +115,21 @@ BC = [
       DirichletBC(U.sub(p_u2), u_00, walls),
       # DirichletBC(U.sub(p_ux), Constant(0        ), obsts),
       # DirichletBC(U.sub(p_uy), Constant(0        ), obsts),
-      DirichletBC(U.sub(p_p1), Constant(0        ), outlet),
-      DirichletBC(U.sub(p_p2), Constant(0        ), outlet),
+      # DirichletBC(U.sub(p_p1), p_out1, outlet),
+      # DirichletBC(U.sub(p_p2), p_out2, outlet),
       ]
 
 a_init = Expression('0.5 +0.001*cos(x[0]*1000)+0.001*cos(x[1]*1000)', degree=2)
 
-assign(ans.sub(p_u1 ), project(Constant((cons_vin*1.1,-cons_vin)), FunctionSpace(mesh, FE_V) ) )
-assign(ans.sub(p_u2 ), project(Constant((cons_vin*0.9,+cons_vin)), FunctionSpace(mesh, FE_V) ) )
+assign(ans.sub(p_u1 ), project(Constant((cons_vin*1.1,+cons_vin)), FunctionSpace(mesh, FE_V) ) )
+assign(ans.sub(p_u2 ), project(Constant((cons_vin*0.9,-cons_vin)), FunctionSpace(mesh, FE_V) ) )
 assign(ans.sub(p_p1 ), project(Constant(0.0E+0), FunctionSpace(mesh, FE_P) ) )
 assign(ans.sub(p_p2 ), project(Constant(0.0E+0), FunctionSpace(mesh, FE_P) ) )
 assign(ans.sub(p_aa ), project(a_init, FunctionSpace(mesh, FE_A) ) )
 
 # solve(F==0, ans, BC)
 
-cons_tol = 1.0E-9
+cons_tol = 1.0E-5
 v_max = cons_vin*20
 p_max = 1E3
 a_min = 0.0 +cons_tol
