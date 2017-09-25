@@ -14,7 +14,7 @@ from mshr      import *
 foldername = 'results_Axissimetric'
 
 # ------ TMIXER GEOMETRY PARAMETERS ------ #
-mesh_res  = 150
+mesh_res  = 100
 mesh_P0   = 0.00
 mesh_A    = 1.5
 mesh_R    = 1.0             # Raio
@@ -112,22 +112,22 @@ F1    = \
       + inner(sigma, grad_vv)             *dx
 
 u_00     = Constant(cons_u_00)
-ut_upper = Expression('omega*x[0]', omega=cons_ome, degree=2)
+ut_up    = Expression('omega*x[0]', omega=OMEGA, degree=2)
 
 # ------ BOUNDARY CONDITIONS ------ #
 p_ur,p_ut,p_uw,p_pp = 0,1,2,3
 BC1 = [
-         DirichletBC(U.sub(p_ur), u_00, upper  ),
-         DirichletBC(U.sub(p_ut), ut_upper, upper  ),
-         DirichletBC(U.sub(p_uw), u_00, upper  ),
-         DirichletBC(U.sub(p_ur), u_00, walls  ),
-         DirichletBC(U.sub(p_ut), u_00, walls  ),
-         DirichletBC(U.sub(p_uw), u_00, walls  ),
-         DirichletBC(U.sub(p_ur), u_00, bottom ),
-         DirichletBC(U.sub(p_ut), u_00, bottom ),
-         DirichletBC(U.sub(p_uw), u_00, bottom ),
+         DirichletBC(U.sub(p_ur), u_00,   upper  ),
+         DirichletBC(U.sub(p_ut), ut_up,  upper  ),
+         DirichletBC(U.sub(p_uw), u_00,   upper  ),
+         DirichletBC(U.sub(p_ur), u_00,   walls  ),
+         DirichletBC(U.sub(p_ut), u_00,   walls  ),
+         DirichletBC(U.sub(p_uw), u_00,   walls  ),
+         DirichletBC(U.sub(p_ur), u_00,   bottom ),
+         DirichletBC(U.sub(p_ut), u_00,   bottom ),
+         DirichletBC(U.sub(p_uw), u_00,   bottom ),
          # DirichletBC(U.sub(p_ur), u_00, middle ),
-         DirichletBC(U.sub(p_ut), u_00, middle ),
+         DirichletBC(U.sub(p_ut), u_00,   middle ),
       ] # end - BC #
 
 # ------ NON LINEAR PROBLEM DEFINITIONS ------ #
@@ -161,11 +161,11 @@ prm["linear_solver"                 ] = "mumps"
 #set_log_level(PROGRESS)
 
 # ------ SAVE FILECONFIGURATIONS ------ #
-# vtk_uu   = File(foldername+'/velocity_surface.pvd')
-# vtk_ur   = File(foldername+'/velocity_radial.pvd')
-# vtk_ut   = File(foldername+'/velocity_tangencial.pvd')
-# vtk_uw   = File(foldername+'/velocity_axial.pvd')
-# vtk_pp   = File(foldername+'/pressure.pvd')
+vtk_uu   = File(foldername+'/velocity_surface.pvd')
+vtk_ur   = File(foldername+'/velocity_radial.pvd')
+vtk_ut   = File(foldername+'/velocity_tangencial.pvd')
+vtk_uw   = File(foldername+'/velocity_axial.pvd')
+vtk_pp   = File(foldername+'/pressure.pvd')
 
 def save_results():
    uu_viz = project(as_vector([ur,uw]) , U_vel2); uu_viz.rename('velocity','velocity');         vtk_uu << uu_viz
@@ -175,10 +175,11 @@ def save_results():
    pp_viz = project(pp , U_prs ); pp_viz.rename('pressure','pressure intrinsic 2');             vtk_pp << pp_viz
 
 def plot_all():
-   plot(ur,title='velocity_radial'     )
-   plot(ut,title='velocity_tangencial' )
-   plot(uw,title='velocity_axial'      )
-   plot(pp,title='pressure'            )
+   plot(ur,                   title='velocity_radial'    )
+   plot(ut,                   title='velocity_tangencial')
+   plot(uw,                   title='velocity_axial'     )
+   plot(as_vector([ur,uw]),   title='velocity_surface'   )
+   plot(pp,                   title='pressure'           )
    interactive()
 
 # ------ TRANSIENT SIMULATION ------ #
@@ -187,9 +188,14 @@ def plot_all():
 # assign(ans.sub(p_uw), project(Constant(0.0 ), U_vel1 ))
 # assign(ans.sub(p_pp), project(Constant(0.0 ), U_prs  ))
 
-nlSolver1.solve()
-plot_all()
-save_results()
+
+for val_omega in [1.0E-4, 1.0E-3, 2.0E-3, 5.0E-3, 1.0E-2]:
+   OMEGA.assign(val_omega)
+   nlSolver1.solve()
+   save_results()
+
+# plot_all()
+# save_results()
 # count_iteration   = 0
 # while( count_iteration < TRANSIENT_MAX_ITE ):
 #    count_iteration = count_iteration +1
