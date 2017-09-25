@@ -167,12 +167,12 @@ vtk_ut   = File(foldername+'/velocity_tangencial.pvd')
 vtk_uw   = File(foldername+'/velocity_axial.pvd')
 vtk_pp   = File(foldername+'/pressure.pvd')
 
-def save_results():
-   uu_viz = project(as_vector([ur,uw]) , U_vel2); uu_viz.rename('velocity','velocity');         vtk_uu << uu_viz
-   ur_viz = project(ur , U_vel1); ur_viz.rename('velocity radial','velocity radial');           vtk_ur << ur_viz
-   ut_viz = project(ut , U_vel1); ut_viz.rename('velocity tangencial','velocity tangencial');   vtk_ut << ut_viz
-   uw_viz = project(uw , U_vel1); uw_viz.rename('pressure axial','pressure axial');             vtk_uw << uw_viz
-   pp_viz = project(pp , U_prs ); pp_viz.rename('pressure','pressure intrinsic 2');             vtk_pp << pp_viz
+def save_results(Re):
+   uu_viz = project(as_vector([ur,uw]) , U_vel2); uu_viz.rename('velocity','velocity');         vtk_uu << (uu_viz,Re)
+   ur_viz = project(ur , U_vel1); ur_viz.rename('velocity radial','velocity radial');           vtk_ur << (ur_viz,Re)
+   ut_viz = project(ut , U_vel1); ut_viz.rename('velocity tangencial','velocity tangencial');   vtk_ut << (ut_viz,Re)
+   uw_viz = project(uw , U_vel1); uw_viz.rename('pressure axial','pressure axial');             vtk_uw << (uw_viz,Re)
+   pp_viz = project(pp , U_prs ); pp_viz.rename('pressure','pressure intrinsic 2');             vtk_pp << (pp_viz,Re)
 
 def plot_all():
    plot(ur,                   title='velocity_radial'    )
@@ -189,10 +189,11 @@ def plot_all():
 # assign(ans.sub(p_pp), project(Constant(0.0 ), U_prs  ))
 
 
-for val_omega in [1.0E-4, 1.0E-3, 2.0E-3, 5.0E-3, 1.0E-2]:
+for val_omega in [ n*1E-4 for n in range(5,20)]:
    OMEGA.assign(val_omega)
+   val_Re = (val_omega*mesh_R**2)*cons_rho/cons_mu
    nlSolver1.solve()
-   save_results()
+   save_results(val_Re)
 
 # plot_all()
 # save_results()
