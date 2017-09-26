@@ -11,10 +11,10 @@ from fenics    import *
 from mshr      import *
 
 # ------ SIMULATION PARAMETERS ------ #
-foldername = 'results_Axissimetric'
+foldername = 'results_AxisFlowBenchmark'
 
 # ------ TMIXER GEOMETRY PARAMETERS ------ #
-mesh_res  = 100
+mesh_res  = 150
 mesh_P0   = 0.00
 mesh_A    = 1.5
 mesh_R    = 1.0             # Raio
@@ -127,7 +127,7 @@ BC1 = [
          DirichletBC(U.sub(p_ut), u_00,   bottom ),
          DirichletBC(U.sub(p_uw), u_00,   bottom ),
          # DirichletBC(U.sub(p_ur), u_00, middle ),
-         DirichletBC(U.sub(p_ut), u_00,   middle ),
+         # DirichletBC(U.sub(p_ut), u_00,   middle ),
       ] # end - BC #
 
 # ------ NON LINEAR PROBLEM DEFINITIONS ------ #
@@ -188,8 +188,10 @@ def plot_all():
 # assign(ans.sub(p_uw), project(Constant(0.0 ), U_vel1 ))
 # assign(ans.sub(p_pp), project(Constant(0.0 ), U_prs  ))
 
-
-for val_omega in [ n*1E-4 for n in range(5,20)]:
+OMEGA.assign(5E-4)
+nlSolver1.solve()
+for val_omega in [ 1E-3+n*1E-5 for n in range(1,200)]:
+   print ('Solving for omega = {}'.format(val_omega))
    OMEGA.assign(val_omega)
    val_Re = (val_omega*mesh_R**2)*cons_rho/cons_mu
    nlSolver1.solve()
