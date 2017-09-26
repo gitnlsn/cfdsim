@@ -14,9 +14,9 @@ from mshr      import *
 foldername = 'results_AxisFlowBenchmark'
 
 # ------ TMIXER GEOMETRY PARAMETERS ------ #
-mesh_res  = 200
+mesh_res  = 80
 mesh_P0   = 0.00
-mesh_A    = 2.5
+mesh_A    = 1.5
 mesh_R    = 1.0             # Raio
 mesh_H    = mesh_R*mesh_A   # Altura
 
@@ -24,8 +24,11 @@ mesh_H    = mesh_R*mesh_A   # Altura
 cons_rho = 1.0E+3
 cons_mu  = 1.0E-3
 cons_ome = 0.99E-4
+cons_dt  = 1.0E-3
 cons_gg  = 0.0
 cons_u_00   = 0
+
+TRANSIENT_MAX_ITE = 300
 
 # ------ MESH ------ #
 part1 = Rectangle(
@@ -66,13 +69,16 @@ U_vel1 = FunctionSpace(mesh, FE_u )
 U_vel2 = FunctionSpace(mesh, MixedElement([FE_u, FE_u          ]) )
 U_vel3 = FunctionSpace(mesh, MixedElement([FE_u, FE_u, FE_u    ]) )
 
-ans   = Function(U)
+ans_next = Function(U)
+ans_last = Function(U)
 
-ur,ut,uw,pp = split(ans)
+ur_n,ut_n,uw_n,pp_n = split(ans_next)
+ur_l,ut_l,uw_l,pp_l = split(ans_last)
 vr,vt,vw,qq = TestFunctions(U)
 
-uu = as_vector( [ur,ut,uw] )
-vv = as_vector( [vr,vt,vw] )
+uu_n = as_vector( [ur_n,ut_n,uw_n] )
+uu_l = as_vector( [ur_l,ut_l,uw_l] )
+vv   = as_vector( [vr  ,vt  ,vw  ] )
 
 dr,dw = 0,1
 r = Expression('x[0]', degree=2)
@@ -102,24 +108,32 @@ def eyed(pp):
                         [Constant(0), pp,          Constant(0)],
                         [Constant(0), Constant(0), pp         ],  ])
 
-div_uu  = div_cyl (uu)
-grad_uu = grad_cyl(uu)
-grad_vv = grad_cyl(vv)
-
 OMEGA    = Constant( cons_ome )
 RHO      = Constant( cons_rho )
 MU       = Constant( cons_mu  )
 gravity  = Constant(-cons_gg  ) 
+DT       = Constant( cons_dt  )
 
 GG = as_vector([ Constant(0), Constant(0), gravity ])
 
-sigma    = MU*(grad_uu+grad_uu.T) -eyed(pp)
+div_uu_n  = div_cyl (uu_n)
+grad_uu_n = grad_cyl(uu_n)
+grad_uu_l = grad_cyl(uu_l)
+grad_vv   = grad_cyl(vv)
 
-F1    = \
-        div_uu*qq                         *dx \
-      + inner(RHO*dot(uu,grad_uu.T), vv)  *dx \
-      + inner(sigma, grad_vv)             *dx \
-      - inner(RHO*GG, vv)                 *dx
+sigma_n  = MU*(grad_uu_n+grad_uu_n.T) -eyed(pp_n)
+sigma_l  = MU*(grad_uu_l+grad_uu_l.T) -eyed(pp_l)
+
+uu_df       =  uu_n -uu_l
+uu_md       = (uu_n +uu_l)*Constant(0.5)
+grad_uu_md  = (grad_uu_n+grad_uu_l)*Constant(0.5)
+sigma_md    = (sigma_n+sigma_l)*Constant(0.5)
+
+F1    = inner(RHO*uu_df/DT,vv)                  *dx \
+      + inner(RHO*dot(uu_md,grad_uu_md.T), vv)  *dx \
+      + inner(sigma_md, grad_vv)                *dx \
+      - inner(RHO*GG, vv)                       *dx \
+      + div_uu_n*qq                             *dx
 
 u_00     = Constant(cons_u_00)
 ut_up    = Expression('omega*x[0]', omega=OMEGA, degree=2)
@@ -146,8 +160,8 @@ BC1 = [
 
 # solve(F1==0, ans, BC1)
 
-dF1 = derivative(F1, ans)
-nlProblem1 = NonlinearVariationalProblem(F1, ans, BC1, dF1)
+dF1 = derivative(F1, ans_next)
+nlProblem1 = NonlinearVariationalProblem(F1, ans_next, BC1, dF1)
 # nlProblem1.set_bounds(lowBound,uppBound)
 nlSolver1  = NonlinearVariationalSolver(nlProblem1)
 nlSolver1.parameters["nonlinear_solver"] = "snes"
@@ -177,20 +191,53 @@ vtk_ut   = File(foldername+'/velocity_tangencial.pvd')
 vtk_uw   = File(foldername+'/velocity_axial.pvd')
 vtk_pp   = File(foldername+'/pressure.pvd')
 
-def save_results(Re):
-   uu_viz = project(as_vector([ur,uw]) , U_vel2); uu_viz.rename('velocity','velocity');         vtk_uu << (uu_viz,Re)
-   ur_viz = project(ur , U_vel1); ur_viz.rename('velocity radial','velocity radial');           vtk_ur << (ur_viz,Re)
-   ut_viz = project(ut , U_vel1); ut_viz.rename('velocity tangencial','velocity tangencial');   vtk_ut << (ut_viz,Re)
-   uw_viz = project(uw , U_vel1); uw_viz.rename('pressure axial','pressure axial');             vtk_uw << (uw_viz,Re)
-   pp_viz = project(pp , U_prs ); pp_viz.rename('pressure','pressure intrinsic 2');             vtk_pp << (pp_viz,Re)
+def save_results(uu,pp,Re):
+   p_radial       = 0
+   p_tangencial   = 1
+   p_axial        = 2
+   u_rad = uu[ p_radial    ]
+   u_tan = uu[ p_tangencial]
+   u_axe = uu[ p_axial     ]
+   p_prs = pp
+   uu_viz = project(as_vector([u_rad,u_axe]), U_vel2); uu_viz.rename('velocity','velocity');       vtk_uu << (uu_viz,Re)
+   ur_viz = project(u_rad , U_vel1); ur_viz.rename('velocity radial','velocity radial');           vtk_ur << (ur_viz,Re)
+   ut_viz = project(u_tan , U_vel1); ut_viz.rename('velocity tangencial','velocity tangencial');   vtk_ut << (ut_viz,Re)
+   uw_viz = project(u_axe , U_vel1); uw_viz.rename('pressure axial','pressure axial');             vtk_uw << (uw_viz,Re)
+   pp_viz = project(p_prs , U_prs ); pp_viz.rename('pressure','pressure intrinsic 2');             vtk_pp << (pp_viz,Re)
 
-def plot_all():
-   plot(ur,                   title='velocity_radial'    )
-   plot(ut,                   title='velocity_tangencial')
-   plot(uw,                   title='velocity_axial'     )
-   plot(as_vector([ur,uw]),   title='velocity_surface'   )
-   plot(pp,                   title='pressure'           )
+def plot_all(uu,pp):
+   p_radial       = 0
+   p_tangencial   = 1
+   p_axial        = 2
+   u_rad = uu[ p_radial    ]
+   u_tan = uu[ p_tangencial]
+   u_axe = uu[ p_axial     ]
+   p_prs = pp
+   plot(as_vector([u_rad,axial]),title='velocity_surface'   )
+   plot(u_rad,                   title='velocity_radial'    )
+   plot(u_tan,                   title='velocity_tangencial')
+   plot(u_axe,                   title='velocity_axial'     )
+   plot(p_prs,                   title='pressure'           )
    interactive()
+
+def RungeKutta2(ans_now, ans_nxt, nlSolver):
+   ans_aux  = Function(U)
+   ans_aux.assign(ans_now)
+   RK1      = Function(U)
+   RK2      = Function(U)
+   RK3      = Function(U)
+   RK4      = Function(U)
+   # 1st iteration
+   ans_now.assign( ans_aux )
+   nlSolver.solve()
+   RK1.assign( ans_nxt -ans_now )
+   # 2nd iteration
+   ans_now.assign( ans_aux+RK1/2.0 )
+   nlSolver.solve()
+   RK2.assign( ans_nxt -ans_now )
+   # return RungeKutta estimate
+   ans_now.assign(ans_aux)
+   ans_nxt.assign(project( ans_aux+ RK2, U))
 
 # ------ TRANSIENT SIMULATION ------ #
 # assign(ans.sub(p_ur), project(Constant(0.0 ), U_vel1 ))
@@ -198,26 +245,24 @@ def plot_all():
 # assign(ans.sub(p_uw), project(Constant(0.0 ), U_vel1 ))
 # assign(ans.sub(p_pp), project(Constant(0.0 ), U_prs  ))
 
-OMEGA.assign(5E-4)
+OMEGA.assign(1.29E-3)
 gravity.assign(0.0E-3)
 nlSolver1.solve()
 
-for val_omega in [ 1E-3+n*5E-5 for n in range(200)]:
-   val_Re = (val_omega*mesh_R**2)*cons_rho/cons_mu
-   print ('Solving for Re = {}'.format(val_Re))
-   OMEGA.assign(val_omega)
-   nlSolver1.solve()
-   save_results(val_Re)
+val_Re = (cons_rho*cons_ome*mesh_R**2)/cons_mu
 
 # plot_all()
 # save_results()
-# count_iteration   = 0
-# while( count_iteration < TRANSIENT_MAX_ITE ):
-#    count_iteration = count_iteration +1
-#    nlSolver1.solve()
-#    residual = assemble(inner(ans2 -ans1,ans2 -ans1)*dx)
-#    print ('Iteration: {}'.format(count_iteration) )
-#    print ('Residual : {}'.format(residual) )
-#    save_results(an1,an2,un1,un2,pn1,pn2)
+count_iteration   = 0
+val_time = 0
+while( count_iteration < TRANSIENT_MAX_ITE ):
+   count_iteration = count_iteration +1
+   val_time = val_time + cons_dt
+   RungeKutta2(ans_last, ans_next, nlSolver1)
+   residual = assemble(inner(ans_next -ans_last,ans_next -ans_last)*dx)
+   print ('Iteration: {}'.format(count_iteration) )
+   print ('Residual : {}'.format(residual) )
+   ans_last.assign(ans_next)
+   save_results(uu_n,pp_n,val_time)
 
 
