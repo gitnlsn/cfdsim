@@ -14,7 +14,7 @@ from mshr      import *
 foldername = 'results_AxisFlowBenchmark'
 
 # ------ TMIXER GEOMETRY PARAMETERS ------ #
-mesh_res  = 150
+mesh_res  = 80
 mesh_P0   = 0.00
 mesh_A    = 1.5
 mesh_R    = 1.0             # Raio
@@ -96,6 +96,11 @@ def div_cyl(uu):
    u_axe = uu[ p_axial     ]
    return u_rad/r +Dx(u_rad,dr) +Dx(u_axe,dw)
 
+def eyed(pp):
+   return as_tensor([   [pp,          Constant(0), Constant(0)],
+                        [Constant(0), pp, Constant(0)],
+                        [Constant(0), Constant(0), pp         ],  ])
+
 div_uu  = div_cyl (uu)
 grad_uu = grad_cyl(uu)
 grad_vv = grad_cyl(vv)
@@ -104,11 +109,11 @@ OMEGA    = Constant(cons_ome  )
 RHO      = Constant(cons_rho  )
 MU       = Constant(cons_mu   )
 
-sigma    = MU*(grad_uu+grad_uu.T) -pp*Identity(len(uu))
+sigma    = MU*(grad_uu+grad_uu.T) -eyed(pp)
 
 F1    = \
         div_uu*qq                         *dx \
-      + inner(RHO*dot(uu,grad_uu), vv)  *dx \
+      + inner(RHO*dot(uu,grad_uu.T), vv)  *dx \
       + inner(sigma, grad_vv)             *dx
 
 u_00     = Constant(cons_u_00)
@@ -188,7 +193,7 @@ def plot_all():
 # assign(ans.sub(p_uw), project(Constant(0.0 ), U_vel1 ))
 # assign(ans.sub(p_pp), project(Constant(0.0 ), U_prs  ))
 
-OMEGA.assign(8E-4)
+OMEGA.assign(5E-4)
 nlSolver1.solve()
 for val_omega in [ 1E-3+n*5E-5 for n in range(80)]:
    val_Re = (val_omega*mesh_R**2)*cons_rho/cons_mu
