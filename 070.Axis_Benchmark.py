@@ -14,9 +14,9 @@ from mshr      import *
 foldername = 'results_AxisFlowBenchmark'
 
 # ------ TMIXER GEOMETRY PARAMETERS ------ #
-mesh_res  = 80
+mesh_res  = 150
 mesh_P0   = 0.00
-mesh_A    = 1.5
+mesh_A    = 2.5
 mesh_R    = 1.0             # Raio
 mesh_H    = mesh_R*mesh_A   # Altura
 
@@ -24,6 +24,7 @@ mesh_H    = mesh_R*mesh_A   # Altura
 cons_rho = 1.0E+3
 cons_mu  = 1.0E-3
 cons_ome = 0.99E-4
+cons_gg  = 9.8
 cons_u_00   = 0
 
 # ------ MESH ------ #
@@ -109,12 +110,15 @@ OMEGA    = Constant(cons_ome  )
 RHO      = Constant(cons_rho  )
 MU       = Constant(cons_mu   )
 
+GG = as_vector([ Constant(0), Constant(0), Constant(cons_gg) ])
+
 sigma    = MU*(grad_uu+grad_uu.T) -eyed(pp)
 
 F1    = \
         div_uu*qq                         *dx \
       + inner(RHO*dot(uu,grad_uu.T), vv)  *dx \
-      + inner(sigma, grad_vv)             *dx
+      + inner(sigma, grad_vv)             *dx \
+      - inner(RHO*GG, vv)                 *dx
 
 u_00     = Constant(cons_u_00)
 ut_up    = Expression('omega*x[0]', omega=OMEGA, degree=2)
@@ -195,7 +199,7 @@ def plot_all():
 
 OMEGA.assign(5E-4)
 nlSolver1.solve()
-for val_omega in [ 1E-3+n*5E-5 for n in range(80)]:
+for val_omega in [ 1E-3+n*5E-5 for n in range(200)]:
    val_Re = (val_omega*mesh_R**2)*cons_rho/cons_mu
    print ('Solving for Re = {}'.format(val_Re))
    OMEGA.assign(val_omega)
