@@ -14,9 +14,9 @@ from mshr      import *
 foldername = 'results_AxisFlowBenchmark'
 
 # ------ TMIXER GEOMETRY PARAMETERS ------ #
-mesh_res  = 150
+mesh_res  = 200
 mesh_P0   = 0.00
-mesh_A    = 2.5
+mesh_A    = 1.5
 mesh_R    = 1.0             # Raio
 mesh_H    = mesh_R*mesh_A   # Altura
 
@@ -24,7 +24,7 @@ mesh_H    = mesh_R*mesh_A   # Altura
 cons_rho = 1.0E+3
 cons_mu  = 1.0E-3
 cons_ome = 0.99E-4
-cons_gg  = 9.8
+cons_gg  = 0.0
 cons_u_00   = 0
 
 # ------ MESH ------ #
@@ -99,7 +99,7 @@ def div_cyl(uu):
 
 def eyed(pp):
    return as_tensor([   [pp,          Constant(0), Constant(0)],
-                        [Constant(0), pp, Constant(0)],
+                        [Constant(0), pp,          Constant(0)],
                         [Constant(0), Constant(0), pp         ],  ])
 
 div_uu  = div_cyl (uu)
@@ -110,7 +110,7 @@ OMEGA    = Constant(cons_ome  )
 RHO      = Constant(cons_rho  )
 MU       = Constant(cons_mu   )
 
-GG = as_vector([ Constant(0), Constant(0), Constant(cons_gg) ])
+GG = as_vector([ Constant(0), Constant(0), Constant(-cons_gg) ])
 
 sigma    = MU*(grad_uu+grad_uu.T) -eyed(pp)
 
@@ -199,6 +199,7 @@ def plot_all():
 
 OMEGA.assign(5E-4)
 nlSolver1.solve()
+
 for val_omega in [ 1E-3+n*5E-5 for n in range(200)]:
    val_Re = (val_omega*mesh_R**2)*cons_rho/cons_mu
    print ('Solving for Re = {}'.format(val_Re))
