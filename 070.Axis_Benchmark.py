@@ -181,8 +181,8 @@ def save_results(Re):
    uu_viz = project(as_vector([ur,uw]) , U_vel2); uu_viz.rename('velocity','velocity');         vtk_uu << (uu_viz,Re)
    ur_viz = project(ur , U_vel1); ur_viz.rename('velocity radial','velocity radial');           vtk_ur << (ur_viz,Re)
    ut_viz = project(ut , U_vel1); ut_viz.rename('velocity tangencial','velocity tangencial');   vtk_ut << (ut_viz,Re)
-   uw_viz = project(uw , U_vel1); uw_viz.rename('pressure axial','pressure axial');             vtk_uw << (uw_viz,Re)
-   pp_viz = project(pp , U_prs ); pp_viz.rename('pressure','pressure intrinsic 2');             vtk_pp << (pp_viz,Re)
+   uw_viz = project(uw , U_vel1); uw_viz.rename('velocity axial','velocity axial');             vtk_uw << (uw_viz,Re)
+   pp_viz = project(pp , U_prs ); pp_viz.rename('pressure','pressure');                         vtk_pp << (pp_viz,Re)
 
 def plot_all():
    plot(ur,                   title='velocity_radial'    )
