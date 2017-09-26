@@ -108,7 +108,7 @@ sigma    = MU*(grad_uu+grad_uu.T) -pp*Identity(len(uu))
 
 F1    = \
         div_uu*qq                         *dx \
-      + inner(RHO*dot(uu,grad_uu.T), vv)  *dx \
+      + inner(RHO*dot(uu,grad_uu), vv)  *dx \
       + inner(sigma, grad_vv)             *dx
 
 u_00     = Constant(cons_u_00)
@@ -127,7 +127,7 @@ BC1 = [
          DirichletBC(U.sub(p_ut), u_00,   bottom ),
          DirichletBC(U.sub(p_uw), u_00,   bottom ),
          # DirichletBC(U.sub(p_ur), u_00, middle ),
-         # DirichletBC(U.sub(p_ut), u_00,   middle ),
+         # DirichletBC(U.sub(p_ut), u_00, middle ),
       ] # end - BC #
 
 # ------ NON LINEAR PROBLEM DEFINITIONS ------ #
@@ -188,12 +188,12 @@ def plot_all():
 # assign(ans.sub(p_uw), project(Constant(0.0 ), U_vel1 ))
 # assign(ans.sub(p_pp), project(Constant(0.0 ), U_prs  ))
 
-OMEGA.assign(5E-4)
+OMEGA.assign(8E-4)
 nlSolver1.solve()
-for val_omega in [ 1E-3+n*1E-5 for n in range(1,200)]:
-   print ('Solving for omega = {}'.format(val_omega))
-   OMEGA.assign(val_omega)
+for val_omega in [ 1E-3+n*5E-5 for n in range(80)]:
    val_Re = (val_omega*mesh_R**2)*cons_rho/cons_mu
+   print ('Solving for Re = {}'.format(val_Re))
+   OMEGA.assign(val_omega)
    nlSolver1.solve()
    save_results(val_Re)
 
