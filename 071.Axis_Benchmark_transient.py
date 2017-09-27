@@ -16,7 +16,7 @@ foldername = 'results_AxisFlowBenchmark'
 # ------ TMIXER GEOMETRY PARAMETERS ------ #
 mesh_res  = 100
 mesh_P0   = 0.00
-mesh_A    = 1.5
+mesh_A    = 2.5
 mesh_R    = 1.0             # Raio
 mesh_H    = mesh_R*mesh_A   # Altura
 
@@ -135,6 +135,11 @@ F1    = inner(RHO*uu_df/DT,vv)                  *dx \
       - inner(RHO*GG, vv)                       *dx \
       + div_uu_n*qq                             *dx
 
+F2    = inner(RHO*dot(uu_md,grad_uu_md.T), vv)  *dx \
+      + inner(sigma_md, grad_vv)                *dx \
+      - inner(RHO*GG, vv)                       *dx \
+      + div_uu_n*qq                             *dx
+
 u_00     = Constant(cons_u_00)
 ut_up    = Expression('omega*x[0]', omega=OMEGA, degree=2)
 
@@ -166,21 +171,29 @@ nlProblem1 = NonlinearVariationalProblem(F1, ans_next, BC1, dF1)
 nlSolver1  = NonlinearVariationalSolver(nlProblem1)
 nlSolver1.parameters["nonlinear_solver"] = "snes"
 
-prm = nlSolver1.parameters["snes_solver"]
-prm["error_on_nonconvergence"       ] = False
-prm["solution_tolerance"            ] = 1.0E-16
-prm["maximum_iterations"            ] = 15
-prm["maximum_residual_evaluations"  ] = 20000
-prm["absolute_tolerance"            ] = 8.0E-12
-prm["relative_tolerance"            ] = 6.0E-12
-prm["linear_solver"                 ] = "mumps"
-# prm["sign"                          ] = "default"
-# prm["method"                        ] = "vinewtonssls"
-# prm["line_search"                   ] = "bt"
-# prm["preconditioner"                ] = "none"
-# prm["report"                        ] = True
-# prm["krylov_solver"                 ]
-# prm["lu_solver"                     ]
+dF2 = derivative(F2, ans_next)
+nlProblem2 = NonlinearVariationalProblem(F2, ans_next, BC1, dF2)
+# nlProblem2.set_bounds(lowBound,uppBound)
+nlSolver2  = NonlinearVariationalSolver(nlProblem2)
+nlSolver2.parameters["nonlinear_solver"] = "snes"
+
+prm1 = nlSolver1.parameters["snes_solver"]
+prm2 = nlSolver1.parameters["snes_solver"]
+for prm in [prm1, prm2]:
+   prm["error_on_nonconvergence"       ] = False
+   prm["solution_tolerance"            ] = 1.0E-16
+   prm["maximum_iterations"            ] = 15
+   prm["maximum_residual_evaluations"  ] = 20000
+   prm["absolute_tolerance"            ] = 8.0E-12
+   prm["relative_tolerance"            ] = 6.0E-12
+   prm["linear_solver"                 ] = "mumps"
+   # prm["sign"                          ] = "default"
+   # prm["method"                        ] = "vinewtonssls"
+   # prm["line_search"                   ] = "bt"
+   # prm["preconditioner"                ] = "none"
+   # prm["report"                        ] = True
+   # prm["krylov_solver"                 ]
+   # prm["lu_solver"                     ]
 
 #set_log_level(PROGRESS)
 
@@ -245,11 +258,9 @@ def RungeKutta2(ans_now, ans_nxt, nlSolver):
 # assign(ans.sub(p_uw), project(Constant(0.0 ), U_vel1 ))
 # assign(ans.sub(p_pp), project(Constant(0.0 ), U_prs  ))
 
-OMEGA.assign(1.29E-3)
 gravity.assign(0.0E-3)
-nlSolver1.solve()
-
-val_Re = (cons_rho*cons_ome*mesh_R**2)/cons_mu
+OMEGA.assign(3.0E-3)
+nlSolver2.solve()
 
 # plot_all()
 # save_results()
