@@ -14,17 +14,17 @@ from mshr      import *
 foldername = 'results_AxisFlowBenchmark'
 
 # ------ TMIXER GEOMETRY PARAMETERS ------ #
-mesh_res  = 100
+mesh_res  = 150
 mesh_P0   = 0.00
-mesh_A    = 2.5
+mesh_A    = 3.25
 mesh_R    = 1.0             # Raio
 mesh_H    = mesh_R*mesh_A   # Altura
 
 # ------ TMIXER GEOMETRY PARAMETERS ------ #
 cons_rho = 1.0E+3
 cons_mu  = 1.0E-3
-cons_ome = 0.99E-4
-cons_dt  = 1/(100*cons_ome)
+cons_ome = 2.75E-3
+cons_dt  = 1/(20*cons_ome)
 cons_gg  = 0.0
 cons_u_00   = 0
 
@@ -213,10 +213,10 @@ def save_results(uu,pp,Re):
    u_axe = uu[ p_axial     ]
    p_prs = pp
    uu_viz = project(as_vector([u_rad,u_axe]), U_vel2); uu_viz.rename('velocity','velocity');       vtk_uu << (uu_viz,Re)
-   ur_viz = project(u_rad , U_vel1); ur_viz.rename('velocity radial','velocity radial');           vtk_ur << (ur_viz,Re)
    ut_viz = project(u_tan , U_vel1); ut_viz.rename('velocity tangencial','velocity tangencial');   vtk_ut << (ut_viz,Re)
-   uw_viz = project(u_axe , U_vel1); uw_viz.rename('pressure axial','pressure axial');             vtk_uw << (uw_viz,Re)
    pp_viz = project(p_prs , U_prs ); pp_viz.rename('pressure','pressure intrinsic 2');             vtk_pp << (pp_viz,Re)
+   # ur_viz = project(u_rad , U_vel1); ur_viz.rename('velocity radial','velocity radial');           vtk_ur << (ur_viz,Re)
+   # uw_viz = project(u_axe , U_vel1); uw_viz.rename('pressure axial','pressure axial');             vtk_uw << (uw_viz,Re)
 
 def plot_all(uu,pp):
    p_radial       = 0
@@ -259,20 +259,23 @@ def RungeKutta2(ans_now, ans_nxt, nlSolver):
 # assign(ans.sub(p_pp), project(Constant(0.0 ), U_prs  ))
 
 gravity.assign(0.0E-3)
-OMEGA.assign(1.0E-4)
-nlSolver2.solve()
+for val_omega in [ 5E-4, 8E-4, 1.5E-3 ]: # cons_ome: desired omega value
+   print ('Continuation Method val_omega: {}'.format(val_omega))
+   OMEGA.assign(val_omega)
+   nlSolver2.solve()
 
-OMEGA.assign(3.0E-3)
-# plot_all()
-# save_results()
+ans_last.assign(ans_next)
+OMEGA.assign(cons_ome)
+
 count_iteration   = 0
 val_time = 0
 while( count_iteration < TRANSIENT_MAX_ITE ):
    count_iteration = count_iteration +1
    val_time = val_time + cons_dt
-   RungeKutta2(ans_last, ans_next, nlSolver1)
-   residual = assemble(inner(ans_next -ans_last,ans_next -ans_last)*dx)
    print ('Iteration: {}'.format(count_iteration) )
+   #RungeKutta2(ans_last, ans_next, nlSolver1)
+   nlSolver1.solve()
+   residual = assemble(inner(ans_next -ans_last,ans_next -ans_last)*dx)
    print ('Residual : {}'.format(residual) )
    ans_last.assign(ans_next)
    save_results(uu_n,pp_n,val_time)
