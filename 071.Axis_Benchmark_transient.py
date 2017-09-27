@@ -14,16 +14,16 @@ from mshr      import *
 foldername = 'results_AxisFlowBenchmark'
 
 # ------ TMIXER GEOMETRY PARAMETERS ------ #
-mesh_res  = 50
+mesh_res  = 200
 mesh_P0   = 0.00
-mesh_A    = 1.5
+mesh_A    = 2.0
 mesh_R    = 1.0             # Raio
 mesh_H    = mesh_R*mesh_A   # Altura
 
 # ------ TMIXER GEOMETRY PARAMETERS ------ #
 cons_rho = 1.0E+3
 cons_mu  = 1.0E-3
-cons_ome = 1.20E-3
+cons_ome = 2.7E-3
 cons_dt  = 1/(20*cons_ome)
 cons_gg  = 0.0
 cons_u_00   = 0
