@@ -14,16 +14,16 @@ from mshr      import *
 foldername = 'results_AxisFlowBenchmark'
 
 # ------ TMIXER GEOMETRY PARAMETERS ------ #
-mesh_res  = 150
+mesh_res  = 50
 mesh_P0   = 0.00
-mesh_A    = 3.25
+mesh_A    = 1.5
 mesh_R    = 1.0             # Raio
 mesh_H    = mesh_R*mesh_A   # Altura
 
 # ------ TMIXER GEOMETRY PARAMETERS ------ #
 cons_rho = 1.0E+3
 cons_mu  = 1.0E-3
-cons_ome = 2.75E-3
+cons_ome = 1.20E-3
 cons_dt  = 1/(20*cons_ome)
 cons_gg  = 0.0
 cons_u_00   = 0
@@ -124,7 +124,7 @@ grad_vv   = grad_cyl(vv)
 sigma_n  = MU*(grad_uu_n+grad_uu_n.T) -eyed(pp_n)
 sigma_l  = MU*(grad_uu_l+grad_uu_l.T) -eyed(pp_l)
 
-uu_df       =  uu_n -uu_l
+uu_df       = (uu_n -uu_l)
 uu_md       = (uu_n +uu_l)*Constant(0.5)
 grad_uu_md  = (grad_uu_n+grad_uu_l)*Constant(0.5)
 sigma_md    = (sigma_n+sigma_l)*Constant(0.5)
@@ -165,6 +165,10 @@ BC1 = [
 
 # solve(F1==0, ans, BC1)
 
+vorticity  = Dx(ur_n, dw) -Dx(uw_n, dr)
+
+M  = inner(vorticity, vorticity) *dx
+
 dF1 = derivative(F1, ans_next)
 nlProblem1 = NonlinearVariationalProblem(F1, ans_next, BC1, dF1)
 # nlProblem1.set_bounds(lowBound,uppBound)
@@ -176,6 +180,9 @@ nlProblem2 = NonlinearVariationalProblem(F2, ans_next, BC1, dF2)
 # nlProblem2.set_bounds(lowBound,uppBound)
 nlSolver2  = NonlinearVariationalSolver(nlProblem2)
 nlSolver2.parameters["nonlinear_solver"] = "snes"
+
+# OMEGA.assign(1E-4)
+# nlSolver2.solve(1E-16)
 
 prm1 = nlSolver1.parameters["snes_solver"]
 prm2 = nlSolver2.parameters["snes_solver"]
@@ -258,15 +265,15 @@ def RungeKutta2(ans_now, ans_nxt, nlSolver):
 # assign(ans.sub(p_uw), project(Constant(0.0 ), U_vel1 ))
 # assign(ans.sub(p_pp), project(Constant(0.0 ), U_prs  ))
 
-gravity.assign(0.0E-3)
-for val_omega in [ 5E-4, 8E-4, 1.5E-3 ]: # cons_ome: desired omega value
-   print ('Continuation Method val_omega: {}'.format(val_omega))
-   OMEGA.assign(val_omega)
-   nlSolver2.solve()
+# gravity.assign(0.0E-3)
+# for val_omega in [ 5E-4, 8E-4, 1.5E-3 ]: # cons_ome: desired omega value
+#    print ('Continuation Method val_omega: {}'.format(val_omega))
+#    OMEGA.assign(val_omega)
+#    nlSolver2.solve()
 
-ans_last.assign(ans_next)
+# ans_last.assign(ans_next)
+
 OMEGA.assign(cons_ome)
-
 count_iteration   = 0
 val_time = 0
 while( count_iteration < TRANSIENT_MAX_ITE ):
