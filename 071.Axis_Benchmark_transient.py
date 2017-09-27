@@ -135,8 +135,8 @@ F1    = inner(RHO*uu_df/DT,vv)                  *dx \
       - inner(RHO*GG, vv)                       *dx \
       + div_uu_n*qq                             *dx
 
-F2    = inner(RHO*dot(uu_md,grad_uu_md.T), vv)  *dx \
-      + inner(sigma_md, grad_vv)                *dx \
+F2    = inner(RHO*dot(uu_n,grad_uu_n.T), vv)  *dx \
+      + inner(sigma_n, grad_vv)                *dx \
       - inner(RHO*GG, vv)                       *dx \
       + div_uu_n*qq                             *dx
 
@@ -178,7 +178,7 @@ nlSolver2  = NonlinearVariationalSolver(nlProblem2)
 nlSolver2.parameters["nonlinear_solver"] = "snes"
 
 prm1 = nlSolver1.parameters["snes_solver"]
-prm2 = nlSolver1.parameters["snes_solver"]
+prm2 = nlSolver2.parameters["snes_solver"]
 for prm in [prm1, prm2]:
    prm["error_on_nonconvergence"       ] = False
    prm["solution_tolerance"            ] = 1.0E-16
@@ -259,9 +259,10 @@ def RungeKutta2(ans_now, ans_nxt, nlSolver):
 # assign(ans.sub(p_pp), project(Constant(0.0 ), U_prs  ))
 
 gravity.assign(0.0E-3)
-OMEGA.assign(3.0E-3)
+OMEGA.assign(1.0E-4)
 nlSolver2.solve()
 
+OMEGA.assign(3.0E-3)
 # plot_all()
 # save_results()
 count_iteration   = 0
