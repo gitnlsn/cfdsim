@@ -16,7 +16,7 @@ foldername = 'results_AxisFlowBenchmark'
 # ------ TMIXER GEOMETRY PARAMETERS ------ #
 mesh_res  = 200
 mesh_P0   = 0.00
-mesh_A    = 2.5
+mesh_A    = 1.5
 mesh_R    = 1.0             # Raio
 mesh_H    = mesh_R*mesh_A   # Altura
 
@@ -77,6 +77,8 @@ vv = as_vector( [vr,vt,vw] )
 dr,dw = 0,1
 r = Expression('x[0]', degree=2)
 
+plot(r)
+
 def grad_cyl(uu):
    p_radial       = 0
    p_tangencial   = 1
@@ -136,8 +138,8 @@ BC1 = [
          DirichletBC(U.sub(p_ur), u_00,   bottom ),
          DirichletBC(U.sub(p_ut), u_00,   bottom ),
          DirichletBC(U.sub(p_uw), u_00,   bottom ),
-         # DirichletBC(U.sub(p_ur), u_00, middle ),
-         # DirichletBC(U.sub(p_ut), u_00, middle ),
+         DirichletBC(U.sub(p_ur), u_00, middle ),
+         DirichletBC(U.sub(p_ut), u_00, middle ),
       ] # end - BC #
 
 # ------ NON LINEAR PROBLEM DEFINITIONS ------ #
@@ -157,8 +159,8 @@ prm["error_on_nonconvergence"       ] = False
 prm["solution_tolerance"            ] = 1.0E-16
 prm["maximum_iterations"            ] = 15
 prm["maximum_residual_evaluations"  ] = 20000
-prm["absolute_tolerance"            ] = 8.0E-12
-prm["relative_tolerance"            ] = 6.0E-12
+prm["absolute_tolerance"            ] = 8.0E-13
+prm["relative_tolerance"            ] = 6.0E-13
 prm["linear_solver"                 ] = "mumps"
 # prm["sign"                          ] = "default"
 # prm["method"                        ] = "vinewtonssls"
