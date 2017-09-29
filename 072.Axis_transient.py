@@ -43,8 +43,8 @@ mesh = generate_mesh(channel, mesh_res)
 mesh_tol = mesh.hmax()/2.0
 
 # ------ BOUNDARIES DEFINITION ------ #
-bottom = '( (x[1]=='+str(mesh_P0)+') && (x[0]>='+str(mesh_HOLE -mesh_tol)+') )'
-inlet  = '( (x[1]=='+str(mesh_P0)+') && (x[0]<='+str(mesh_HOLE +mesh_tol)+') )'
+bottom = '( (x[1]=='+str(mesh_P0)+') && ( (x[0]>='+str(mesh_R*0.3 +mesh_HOLE -mesh_tol)+') || (x[0]<='+str(mesh_R*0.3 -mesh_HOLE +mesh_tol)+') ) )'
+inlet  = '( (x[1]=='+str(mesh_P0)+') && ( (x[0]<='+str(mesh_R*0.3 +mesh_HOLE +mesh_tol)+') && (x[0]>='+str(mesh_R*0.3 -mesh_HOLE -mesh_tol)+') ) )'
 upper  = '( (x[1]=='+str(mesh_H )+') && (x[0]>='+str(mesh_HOLE -mesh_tol)+') )'
 outlet = '( (x[1]=='+str(mesh_H )+') && (x[0]<='+str(mesh_HOLE +mesh_tol)+') )'
 middle = '( (x[0]=='+str(mesh_P0)+') )'
