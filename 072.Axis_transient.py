@@ -14,7 +14,7 @@ from mshr      import *
 foldername = 'results_AxisFlowBenchmark'
 
 # ------ TMIXER GEOMETRY PARAMETERS ------ #
-mesh_res  = 50
+mesh_res  = 150
 mesh_P0   = 0.00
 mesh_A    = 1.5
 hole_size = 0.05

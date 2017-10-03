@@ -14,16 +14,16 @@ from mshr      import *
 foldername = 'results_AxisFlowBenchmark'
 
 # ------ TMIXER GEOMETRY PARAMETERS ------ #
-mesh_res  = 200
+mesh_res  = 150
 mesh_P0   = 0.00
-mesh_A    = 1.5
+mesh_A    = 2.5
 mesh_R    = 1.0             # Raio
 mesh_H    = mesh_R*mesh_A   # Altura
 
 # ------ TMIXER GEOMETRY PARAMETERS ------ #
 cons_rho = 1.0E+3
 cons_mu  = 1.0E-3
-cons_ome = 0.99E-4
+cons_ome = 3.0E-3
 cons_gg  = 0.0
 cons_u_00   = 0
 
@@ -61,7 +61,6 @@ elem  = MixedElement([FE_u, FE_u, FE_u, FE_p  ])
 U     = FunctionSpace(mesh, elem)
 
 U_prs  = FunctionSpace(mesh, FE_p)
-
 U_vel1 = FunctionSpace(mesh, FE_u )
 U_vel2 = FunctionSpace(mesh, MixedElement([FE_u, FE_u          ]) )
 U_vel3 = FunctionSpace(mesh, MixedElement([FE_u, FE_u, FE_u    ]) )
@@ -76,8 +75,6 @@ vv = as_vector( [vr,vt,vw] )
 
 dr,dw = 0,1
 r = Expression('x[0]', degree=2)
-
-plot(r)
 
 def grad_cyl(uu):
    p_radial       = 0
@@ -116,6 +113,7 @@ gravity  = Constant(-cons_gg  )
 GG = as_vector([ Constant(0), Constant(0), gravity ])
 
 sigma    = MU*(grad_uu+grad_uu.T) -eyed(pp)
+# sigma    = MU*(grad_uu) -eyed(pp)
 
 F1    = \
         div_uu*qq                         *dx \
@@ -154,21 +152,51 @@ nlProblem1 = NonlinearVariationalProblem(F1, ans, BC1, dF1)
 nlSolver1  = NonlinearVariationalSolver(nlProblem1)
 nlSolver1.parameters["nonlinear_solver"] = "snes"
 
-prm = nlSolver1.parameters["snes_solver"]
-prm["error_on_nonconvergence"       ] = False
-prm["solution_tolerance"            ] = 1.0E-16
-prm["maximum_iterations"            ] = 15
-prm["maximum_residual_evaluations"  ] = 20000
-prm["absolute_tolerance"            ] = 8.0E-13
-prm["relative_tolerance"            ] = 6.0E-13
-prm["linear_solver"                 ] = "mumps"
-# prm["sign"                          ] = "default"
-# prm["method"                        ] = "vinewtonssls"
-# prm["line_search"                   ] = "bt"
-# prm["preconditioner"                ] = "none"
-# prm["report"                        ] = True
-# prm["krylov_solver"                 ]
-# prm["lu_solver"                     ]
+prm1 = nlSolver1.parameters["snes_solver"]
+
+# ------- STREAMFUNCTION CALCULATION ------- #
+
+psi   = Function(U_prs)
+qsi   = TestFunction(U_prs)
+
+grad_psi = as_vector([uw*r, -ur*r])
+ome      = Dx(ur,dw) -Dx(uw,dr)
+N        = FacetNormal(mesh)
+
+F2    = inner(grad(psi),grad(qsi))  *dx \
+      + Dx(psi,dr)*qsi/r            *dx \
+      - r*ome*qsi                   *dx \
+      - inner(grad_psi, N)*qsi      *ds
+
+BC2 = [
+         DirichletBC(U_prs, Constant(0), upper),
+         DirichletBC(U_prs, Constant(0), walls),
+         DirichletBC(U_prs, Constant(0), bottom),
+         DirichletBC(U_prs, Constant(0), middle),
+      ]
+
+dF2 = derivative(F2, psi)
+nlProblem2 = NonlinearVariationalProblem(F2, psi, BC2, dF2)
+# nlProblem2.set_bounds(lowBound,uppBound)
+nlSolver2  = NonlinearVariationalSolver(nlProblem2)
+nlSolver2.parameters["nonlinear_solver"] = "snes"
+
+prm2 = nlSolver2.parameters["snes_solver"]
+for prm in [prm1, prm2]:
+   prm["error_on_nonconvergence"       ] = False
+   prm["solution_tolerance"            ] = 1.0E-16
+   prm["maximum_iterations"            ] = 15
+   prm["maximum_residual_evaluations"  ] = 20000
+   prm["absolute_tolerance"            ] = 8.0E-13
+   prm["relative_tolerance"            ] = 6.0E-13
+   prm["linear_solver"                 ] = "mumps"
+   # prm["sign"                          ] = "default"
+   # prm["method"                        ] = "vinewtonssls"
+   # prm["line_search"                   ] = "bt"
+   # prm["preconditioner"                ] = "none"
+   # prm["report"                        ] = True
+   # prm["krylov_solver"                 ]
+   # prm["lu_solver"                     ]
 
 #set_log_level(PROGRESS)
 
@@ -178,6 +206,7 @@ vtk_ur   = File(foldername+'/velocity_radial.pvd')
 vtk_ut   = File(foldername+'/velocity_tangencial.pvd')
 vtk_uw   = File(foldername+'/velocity_axial.pvd')
 vtk_pp   = File(foldername+'/pressure.pvd')
+vtk_ps   = File(foldername+'/streamfunction.pvd')
 
 def save_results(Re):
    uu_viz = project(as_vector([ur,uw]) , U_vel2); uu_viz.rename('velocity','velocity');         vtk_uu << (uu_viz,Re)
@@ -185,6 +214,7 @@ def save_results(Re):
    ut_viz = project(ut , U_vel1); ut_viz.rename('velocity tangencial','velocity tangencial');   vtk_ut << (ut_viz,Re)
    uw_viz = project(uw , U_vel1); uw_viz.rename('velocity axial','velocity axial');             vtk_uw << (uw_viz,Re)
    pp_viz = project(pp , U_prs ); pp_viz.rename('pressure','pressure');                         vtk_pp << (pp_viz,Re)
+   ps_viz = project(psi, U_prs ); ps_viz.rename('streamfunction','streamfunction');             vtk_ps << (ps_viz,Re)
 
 def plot_all():
    plot(ur,                   title='velocity_radial'    )
@@ -192,6 +222,7 @@ def plot_all():
    plot(uw,                   title='velocity_axial'     )
    plot(as_vector([ur,uw]),   title='velocity_surface'   )
    plot(pp,                   title='pressure'           )
+   plot(psi,                  title='streamfunction'     )
    interactive()
 
 # ------ TRANSIENT SIMULATION ------ #
@@ -203,12 +234,16 @@ def plot_all():
 OMEGA.assign(5E-4)
 gravity.assign(0.0E-3)
 nlSolver1.solve()
+nlSolver2.solve()
+# solve(J==0, psi, BC2, )
+# plot(psi); interactive()
 
 for val_omega in [ 1E-3+n*5E-5 for n in range(200)]:
    val_Re = (val_omega*mesh_R**2)*cons_rho/cons_mu
    print ('Solving for Re = {}'.format(val_Re))
    OMEGA.assign(val_omega)
    nlSolver1.solve()
+   nlSolver2.solve()
    save_results(val_Re)
 
 # plot_all()
