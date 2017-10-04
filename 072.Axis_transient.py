@@ -14,22 +14,23 @@ from mshr      import *
 foldername = 'results_AxisFlowBenchmark'
 
 # ------ TMIXER GEOMETRY PARAMETERS ------ #
-mesh_res  = 150
-mesh_P0   = 0.00
-mesh_A    = 1.5
-hole_size = 0.05
+mesh_res  = 70
+mesh_P0   = 0.00              # zero peca
+mesh_A    = 1.5               # razao entre raio e altura
+hole_size = 0.05              # proporcao do tamanho da abertura relativa ao raio
 mesh_R    = 1.0               # Raio
 mesh_H    = mesh_R*mesh_A     # Altura
-mesh_HOLE = mesh_R*hole_size
+mesh_HOLE = mesh_R*hole_size  # medida da abertura para entrada de particulas
 
 # ------ TMIXER GEOMETRY PARAMETERS ------ #
-cons_rho = 1.0E+3
-cons_mu  = 1.0E-3
-cons_ome = 1.5E-3
-cons_dt  = 1/(cons_ome)
-cons_gg  = 0.0
-cons_dif = 1E-8
-cons_u_00   = 0
+cons_rho    = 1.0E+3             # densidade agua
+cons_rhoP   = 5.0E+3             # densidade particulado
+cons_mu     = 1.0E-3             # viscosidade agua
+cons_ome    = 1.5E-3             # velocidade angular tampa
+cons_dt     = 1/(cons_ome)       # intervalo de tempo
+cons_gg     = 9.8                # gravidade
+cons_dp     = 3.35E-6            # tamanho da particula: 3.35; 10.25; 19.37; 28.27; 38; 63
+cons_u_00   = 0                  # velocidade nula
 
 TRANSIENT_MAX_ITE = 2000
 
@@ -126,10 +127,11 @@ def eyed(pp):
 
 OMEGA    = Constant( cons_ome )
 RHO      = Constant( cons_rho )
+RHO_p    = Constant( cons_rhoP)
 MU       = Constant( cons_mu  )
 gravity  = Constant(-cons_gg  )
 DT       = Constant( cons_dt  )
-DD       = Constant( cons_dif )
+dP       = Constant( cons_dp  )
 N2       = Constant( 2.0      )
 GG = as_vector([ Constant(0), Constant(0), gravity ])
 
@@ -153,15 +155,25 @@ grad_uu_md  = Constant(0.5)*(grad_uu_n+grad_uu_l)
 grad_aa_md  = Constant(0.5)*(grad_aa_n+grad_aa_l)
 sigma_md    = Constant(0.5)*(sigma_n+sigma_l)
 
+vorticity  = as_vector([  -Dx(ut_n,dw),
+                           Dx(ur_n, dw) -Dx(uw_n, dr), 
+                           ut_n/r +Dx(ut_n, dr)          ])
+
+frep  = Constant(0.44)
+Cp    = Constant(4.1126)*RHO*dP*dP*sqrt(inner(vorticity,vorticity))/MU
+# Cp    = Constant(4.1126)*RHO*dP*dP/MU*Constant(0.5)
+# u_pmi = dP*dP*(RHO_p -RHO)/(18*frep*MU) *(GG + 0.75*RHO/(RHO_p -RHO)*Cp*cross(vorticity, uu_n) )
+u_pmi = dP*dP*(RHO_p -RHO)/(18*frep*MU) *(0.75*RHO/(RHO_p -RHO)*Cp*cross(vorticity, uu_n) )
+
 F1    = inner(RHO*uu_df/DT,vv)                  *dx \
       + inner(RHO*dot(uu_md,grad_uu_md.T), vv)  *dx \
       + inner(sigma_md, grad_vv)                *dx \
-      - inner(RHO*GG, vv)                       *dx \
       + div_uu_n*qq                             *dx \
       + inner(aa_df/DT, bb)                     *dx \
-      + inner(dot(uu_md, grad_aa_md), bb)       *dx \
-      + inner(DD*grad_aa_md, grad_bb)           *dx \
+      + inner(dot(uu_md+u_pmi, grad_aa_md), bb) *dx \
+      + inner(grad_aa_md, grad_bb)*Constant(1E-8)*dx \
       + inner(dot(uu_md, grad_aa_md),      dot(uu_md, grad_bb))   *DT/N2 *dx
+      # - inner(RHO*GG, vv)                       *dx \
       # + inner(grad_scalar(pp_md),          dot(uu_md,grad_vv.T))  *DT/N2 *dx \
       # + inner(RHO*dot(uu_md,grad_uu_md.T), dot(uu_md,grad_vv.T))  *DT/N2 *dx \
 
@@ -170,7 +182,7 @@ F2    = inner(RHO*dot(uu_n,grad_uu_n.T), vv)    *dx \
       - inner(RHO*GG, vv)                       *dx \
       + div_uu_n*qq                             *dx \
       + inner(dot(uu_n, grad_aa_n), bb)         *dx \
-      + inner(DD*grad_aa_n, grad_bb)            *dx
+      + inner(aa_md*u_pmi, grad_bb)             *dx \
 
 u_00     = Constant(cons_u_00)
 ut_up    = Expression('omega*x[0]', omega=OMEGA, degree=2)
@@ -214,9 +226,6 @@ BC2 = [
 # uppBound = project(Constant((a_max, +v_max, +v_max, +v_max, +v_max, +p_max, +p_max)), U)
 
 # solve(F1==0, ans, BC1)
-
-vorticity  = Dx(ur_n, dw) -Dx(uw_n, dr)
-M  = inner(vorticity, vorticity) *dx
 
 dF1 = derivative(F1, ans_next)
 nlProblem1 = NonlinearVariationalProblem(F1, ans_next, BC1, dF1)
