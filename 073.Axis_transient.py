@@ -9,6 +9,7 @@ NELSON KENZO TAMASHIRO
 # ------ LIBRARIES ------ #
 from fenics    import *
 from mshr      import *
+from math      import pi, tan
 
 # ------ SIMULATION PARAMETERS ------ #
 foldername = 'results_AxisFlowBenchmark'
@@ -21,6 +22,15 @@ hole_size = 0.05              # proporcao do tamanho da abertura relativa ao rai
 mesh_R    = 1.0               # Raio
 mesh_H    = mesh_R*mesh_A     # Altura
 mesh_HOLE = mesh_R*hole_size  # medida da abertura para entrada de particulas
+
+mesh_Dc  = 102.0E-3
+mesh_Di  =  15.7E-3
+mesh_Dv  =  23.7E-3
+mesh_Ds  =  20.0E-3
+mesh_th  =  20.0        *pi/180.0 #graus
+mesh_Lv  =  60.0E-3
+mesh_Lc  = 100.4E-3
+mesh_es  =   1.0E-3
 
 # ------ TMIXER GEOMETRY PARAMETERS ------ #
 cons_rho    = 1.0E+3             # densidade agua
@@ -35,11 +45,20 @@ cons_u_00   = 0                  # velocidade nula
 TRANSIENT_MAX_ITE = 2000
 
 # ------ MESH ------ #
-part1 = Rectangle(
-   Point(mesh_P0, mesh_P0),
-   Point(mesh_R , mesh_H )    )
+part1 = Polygon([
+   Point(mesh_P0,                mesh_P0                                                      ),
+   Point(mesh_Ds/2.0,            mesh_P0                                                      ),
+   Point(mesh_Ds/2.0,            mesh_Lv/2.0                                                  ),
+   Point(mesh_Dc/2.0,            mesh_Lv/2.0 +(mesh_Dc -mesh_Ds)/(2.0*tan(mesh_th))           ),
+   Point(mesh_Dc/2.0,            mesh_Lv/2.0 +(mesh_Dc -mesh_Ds)/(2.0*tan(mesh_th)) +mesh_Lc  ),
+   Point(mesh_Dv/2.0 +mesh_es,   mesh_Lv/2.0 +(mesh_Dc -mesh_Ds)/(2.0*tan(mesh_th)) +mesh_Lc  ),
+   Point(mesh_Dv/2.0 +mesh_es,                (mesh_Dc -mesh_Ds)/(2.0*tan(mesh_th)) +mesh_Lc  ),
+   Point(mesh_Dv/2.0,                         (mesh_Dc -mesh_Ds)/(2.0*tan(mesh_th)) +mesh_Lc  ),
+   Point(mesh_Dv/2.0,            mesh_Lv/2.0 +(mesh_Dc -mesh_Ds)/(2.0*tan(mesh_th)) +mesh_Lc  ),
+   Point(mesh_P0,                mesh_Lv/2.0 +(mesh_Dc -mesh_Ds)/(2.0*tan(mesh_th)) +mesh_Lc  ),       ])
 channel = part1
 mesh = generate_mesh(channel, mesh_res)
+plot(mesh); interactive()
 
 mesh_tol = mesh.hmax()/2.0
 
