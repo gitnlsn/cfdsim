@@ -15,16 +15,10 @@ from math      import pi, tan
 foldername = 'results_AxisFlowBenchmark'
 
 # ------ TMIXER GEOMETRY PARAMETERS ------ #
-mesh_res  = 70
-mesh_P0   = 0.00              # zero peca
-mesh_A    = 1.5               # razao entre raio e altura
-hole_size = 0.05              # proporcao do tamanho da abertura relativa ao raio
-mesh_R    = 1.0               # Raio
-mesh_H    = mesh_R*mesh_A     # Altura
-mesh_HOLE = mesh_R*hole_size  # medida da abertura para entrada de particulas
-
+mesh_res  = 300
+mesh_P0  = 0.0
 mesh_Dc  = 102.0E-3
-mesh_Di  =  15.7E-3
+mesh_Di  =   8.7E-3
 mesh_Dv  =  23.7E-3
 mesh_Ds  =  20.0E-3
 mesh_th  =  20.0        *pi/180.0 #graus
@@ -37,8 +31,9 @@ cons_rho    = 1.0E+3             # densidade agua
 cons_rhoP   = 5.0E+3             # densidade particulado
 cons_mu     = 1.0E-3             # viscosidade agua
 cons_ome    = 1.5E-3             # velocidade angular tampa
-cons_dt     = 10/(cons_ome)       # intervalo de tempo
+cons_dt     = 2.5E-4               # intervalo de tempo
 cons_gg     = 9.8                # gravidade
+cons_vin    = 1.00E-1
 cons_dp     = 3.35E-6            # tamanho da particula: 3.35; 10.25; 19.37; 28.27; 38; 63
 cons_u_00   = 0                  # velocidade nula
 
@@ -58,35 +53,47 @@ part1 = Polygon([
    Point(mesh_P0,                mesh_Lv/2.0 +(mesh_Dc -mesh_Ds)/(2.0*tan(mesh_th)) +mesh_Lc  ),       ])
 channel = part1
 mesh = generate_mesh(channel, mesh_res)
-plot(mesh); interactive()
+# plot(mesh); interactive()
 
-mesh_tol = mesh.hmax()/2.0
+mesh_tol = mesh.hmax()/3.0
 
 # ------ BOUNDARIES DEFINITION ------ #
-bottom = '( (x[1]=='+str(mesh_P0)+') && ( (x[0]>='+str(mesh_R*0.3 +mesh_HOLE -mesh_tol)+') || (x[0]<='+str(mesh_R*0.3 -mesh_HOLE +mesh_tol)+') ) )'
-inlet  = '( (x[1]=='+str(mesh_P0)+') && ( (x[0]<='+str(mesh_R*0.3 +mesh_HOLE +mesh_tol)+') && (x[0]>='+str(mesh_R*0.3 -mesh_HOLE -mesh_tol)+') ) )'
-upper  = '( (x[1]=='+str(mesh_H )+') && (x[0]>='+str(mesh_HOLE -mesh_tol)+') )'
-outlet = '( (x[1]=='+str(mesh_H )+') && (x[0]<='+str(mesh_HOLE +mesh_tol)+') )'
-middle = '( (x[0]=='+str(mesh_P0)+') )'
-walls  = '( (x[0]=='+str(mesh_R )+') )'
+outlet1  = '(   on_boundary && (x[0]<'+str(mesh_Dv/2.0 +mesh_tol)+') '\
+         + '&& (x[1]>='+str(mesh_Lv/2.0 +(mesh_Dc -mesh_Ds)/(2.0*tan(mesh_th)) +mesh_Lc -mesh_tol)+')  )'
+outlet2  = '(  near(x[1],'+str(mesh_P0)                                                      +') '\
+         + '&&  (x[0]< '+str(mesh_Ds/2.0 +mesh_tol )                                       +')   )'
+middle   = '(   (x[0]=='+str(mesh_P0)+')  )'
+walls    = 'on_boundary && (x[0]>'+str(mesh_P0)+')' \
+         + '&& !( (x[1]=='+str(mesh_P0)+') && (x[0]<'+str(mesh_Ds/2.0)+') )'\
+         + '&& !( (x[1]>='+str(mesh_Lv/2.0 +(mesh_Dc -mesh_Ds)/(2.0*tan(mesh_th)) +mesh_Lc -mesh_tol)+') '\
+               + '&& (x[0]<'+str(mesh_Dv/2.0)+') )'\
 
-ds_upper, ds_bottom, ds_middle, ds_walls, ds_inlet, ds_outlet = 1,2,3,4,5,6
+ds_outlet1, ds_outlet2, ds_middle, ds_walls = 1,2,3,4
 
 boundaries     = FacetFunction ('size_t', mesh)
-side_upper     = CompiledSubDomain( upper    )
-side_bottom    = CompiledSubDomain( bottom   )
-side_inlet     = CompiledSubDomain( inlet    )
-side_outlet    = CompiledSubDomain( outlet   )
 side_walls     = CompiledSubDomain( walls    )
 side_middle    = CompiledSubDomain( middle   )
+side_outlet1   = CompiledSubDomain( outlet1  )
+side_outlet2   = CompiledSubDomain( outlet2  )
 boundaries.set_all(0)
-side_upper.mark   (boundaries, ds_upper  )
-side_bottom.mark  (boundaries, ds_bottom )
-side_walls.mark   (boundaries, ds_walls  )
-side_middle.mark  (boundaries, ds_middle )
-side_inlet.mark   (boundaries, ds_inlet  )
-side_outlet.mark  (boundaries, ds_outlet )
+side_walls.mark   (boundaries, ds_walls   )
+side_middle.mark  (boundaries, ds_middle  )
+side_outlet1.mark (boundaries, ds_outlet1 )
+side_outlet2.mark (boundaries, ds_outlet2 )
 ds = Measure( 'ds', subdomain_data=boundaries )
+
+dx_inlet = 1
+domain   = CellFunction  ('size_t', mesh)
+inlet    = '('                                                                                           \
+         +  '     (x[0]<'+str(mesh_Dc/2.0          +mesh_tol)+')'                                                 \
+         +  '  && (x[0]>'+str(mesh_Dc/2.0 -mesh_Di -mesh_tol)+')'                                                 \
+         +  '  && (x[1]<'+str(mesh_Lv/2.0 +(mesh_Dc -mesh_Ds)/(2.0*tan(mesh_th)) +mesh_Lc          +mesh_tol)+')' \
+         +  '  && (x[1]>'+str(mesh_Lv/2.0 +(mesh_Dc -mesh_Ds)/(2.0*tan(mesh_th)) +mesh_Lc -mesh_Di -mesh_tol)+')' \
+         +' )'
+CompiledSubDomain( inlet ).mark( domain, dx_inlet )
+dx = Measure('dx', subdomain_data=domain )
+
+# plot(domain); interactive()
 
 # ------ VARIATIONAL FORMULATION ------ #
 FE_u  = FiniteElement('P', 'triangle', 2)
@@ -152,6 +159,9 @@ gravity  = Constant(-cons_gg  )
 DT       = Constant( cons_dt  )
 dP       = Constant( cons_dp  )
 N2       = Constant( 2.0      )
+VI_IN    = Constant( cons_vin )
+AA_IN    = Constant( 0.5      )
+PI       = Constant( pi       )
 GG = as_vector([ Constant(0), Constant(0), gravity ])
 
 div_uu_n  = div_cyl (uu_n)
@@ -178,26 +188,26 @@ grad_aa_md  = Constant(0.5)*(grad_aa_n+grad_aa_l)
 sigma_md    = Constant(0.5)*(sigma_n+sigma_l)
 
 NORMAL      = FacetNormal(mesh)
-SIGMA_DS    = as_tensor([  [-RHO*gravity*Constant(-mesh_H), Constant(0)],
-                           [Constant(0),                    Constant(0)],
-                           [Constant(0), -RHO*gravity*Constant(-mesh_H)],  ] )
+# SIGMA_DS    = as_tensor([  [-RHO*gravity*Constant(-mesh_H), Constant(0)],
+#                            [Constant(0),                    Constant(0)],
+#                            [Constant(0), -RHO*gravity*Constant(-mesh_H)],  ] )
 
 vorticity  = as_vector([  -Dx(ut_md,dw),
                            Dx(ur_n, dw) -Dx(uw_n, dr), 
                            ut_n/r +Dx(ut_n, dr)          ])
 
-frep  = Constant(10)
-Cp    = Constant(4.1126)*RHO*dP*dP*sqrt(inner(vorticity,vorticity))/MU
-# Cp    = Constant(4.1126)*RHO*dP*dP/MU*Constant(0.5)
-# u_pmi = dP*dP*(RHO_p -RHO)/(18*frep*MU) *(GG + 0.75*RHO/(RHO_p -RHO)*Cp*cross(vorticity, uu_n) )
-u_pmi = dP*dP*(RHO_p -RHO)/(18*frep*MU) *(GG +grad_scalar(pp_md))
+frep  = Constant(0.5)
+u_pmi = dP*dP*(RHO_p -RHO)/(18*frep*MU) *(GG +grad_scalar(pp_md)/RHO_p)
 
 F1    = inner(RHO*uu_df/DT,vv)                  *dx \
       + inner(RHO*dot(uu_md,grad_uu_md.T), vv)  *dx \
       + inner(sigma_md, grad_vv)                *dx \
       + div_uu_n*qq                             *dx \
+      - VI_IN/(2*PI*r)*qq                       *dx(dx_inlet) \
+      - VI_IN*VI_IN/(2*PI*r)*vt                 *dx(dx_inlet) \
       + inner(aa_df/DT, bb)                     *dx \
-      + div_cyl((uu_md+u_pmi)*aa_md) *bb        *dx \
+      + div_cyl((uu_md)*aa_md) *bb              *dx \
+      - VI_IN*AA_IN/(2*PI*r)*bb                 *dx(dx_inlet) \
       + inner(grad_aa_md, grad_bb)*Constant(1E-8)*dx \
       + inner(dot(uu_md, grad_aa_md),      dot(uu_md, grad_bb))   *DT/N2 *dx
       # - inner(RHO*GG, vv)                       *dx \
@@ -207,46 +217,40 @@ F1    = inner(RHO*uu_df/DT,vv)                  *dx \
 
 F2    = inner(RHO*dot(uu_n,grad_uu_n.T), vv)    *dx \
       + inner(sigma_n, grad_vv)                 *dx \
-      - inner(RHO*GG, vv)                       *dx \
       + div_uu_n*qq                             *dx \
-      + inner(dot(uu_n, grad_aa_n), bb)         *dx \
-      + inner(aa_md*u_pmi, grad_bb)             *dx \
+      - VI_IN/(2*PI*r)*qq                       *dx(dx_inlet) \
+      - VI_IN*VI_IN/(2*PI*r)*vt                 *dx(dx_inlet) \
+      + div_cyl((uu_n)*aa_n) *bb                *dx \
+      - VI_IN*AA_IN/(2*PI*r)*bb                 *dx(dx_inlet) \
+      + inner(grad_aa_n, grad_bb)*Constant(1E-8)*dx
 
-u_00     = Constant(cons_u_00)
+u_00     = Constant(cons_u_00 )
+u_in     = Constant(cons_vin  )
 ut_up    = Expression('omega*x[0]', omega=OMEGA, degree=2)
 a_in1    = Constant(1.0)
 a_in2    = Constant(0.0)
+a_in     = Constant(0.5)
 
 # ------ BOUNDARY CONDITIONS ------ #
 p_ur,p_ut,p_uw,p_pp,p_aa = 0,1,2,3,4
 BC1 = [
-         DirichletBC(U.sub(p_ur), u_00,   upper  ),
-         DirichletBC(U.sub(p_ut), ut_up,  upper  ),
-         DirichletBC(U.sub(p_uw), u_00,   upper  ),
          DirichletBC(U.sub(p_ur), u_00,   walls  ),
          DirichletBC(U.sub(p_ut), u_00,   walls  ),
          DirichletBC(U.sub(p_uw), u_00,   walls  ),
-         DirichletBC(U.sub(p_ur), u_00,   bottom ),
-         DirichletBC(U.sub(p_ut), u_00,   bottom ),
-         DirichletBC(U.sub(p_uw), u_00,   bottom ),
-         DirichletBC(U.sub(p_ur), u_00,   middle ),
-         DirichletBC(U.sub(p_ut), u_00,   middle ),
-         DirichletBC(U.sub(p_aa), a_in1,  inlet  ),
+         # DirichletBC(U.sub(p_ur), u_00,   middle ),
+         # DirichletBC(U.sub(p_ut), u_00,   middle ),
+         # DirichletBC(U.sub(p_aa), a_in,   inlet  ),
+         # DirichletBC(U.sub(p_ut), u_in,   inlet  ),
       ] # end - BC #
 
 BC2 = [
-         DirichletBC(U.sub(p_ur), u_00,   upper  ),
-         DirichletBC(U.sub(p_ut), ut_up,  upper  ),
-         DirichletBC(U.sub(p_uw), u_00,   upper  ),
          DirichletBC(U.sub(p_ur), u_00,   walls  ),
          DirichletBC(U.sub(p_ut), u_00,   walls  ),
          DirichletBC(U.sub(p_uw), u_00,   walls  ),
-         DirichletBC(U.sub(p_ur), u_00,   bottom ),
-         DirichletBC(U.sub(p_ut), u_00,   bottom ),
-         DirichletBC(U.sub(p_uw), u_00,   bottom ),
-         DirichletBC(U.sub(p_ur), u_00,   middle ),
-         DirichletBC(U.sub(p_ut), u_00,   middle ),
-         DirichletBC(U.sub(p_aa), a_in2,  inlet  ),
+         # DirichletBC(U.sub(p_ur), u_00,   middle ),
+         # DirichletBC(U.sub(p_ut), u_00,   middle ),
+         # DirichletBC(U.sub(p_aa), a_in,   inlet  ),
+         # DirichletBC(U.sub(p_ut), u_in,   inlet  ),
       ] # end - BC #
 
 # ------ NON LINEAR PROBLEM DEFINITIONS ------ #
@@ -271,14 +275,14 @@ nlSolver2.parameters["nonlinear_solver"] = "snes"
 # nlSolver2.solve(1E-16)
 
 prm1 = nlSolver1.parameters["snes_solver"]
-prm2 = nlSolver2.parameters["snes_solver"]
-for prm in [prm1, prm2]:
+# prm2 = nlSolver2.parameters["snes_solver"]
+for prm in [prm1]:
    prm["error_on_nonconvergence"       ] = False
    prm["solution_tolerance"            ] = 1.0E-16
    prm["maximum_iterations"            ] = 15
    prm["maximum_residual_evaluations"  ] = 20000
-   prm["absolute_tolerance"            ] = 8.0E-16
-   prm["relative_tolerance"            ] = 6.0E-16
+   prm["absolute_tolerance"            ] = 8.0E-12
+   prm["relative_tolerance"            ] = 6.0E-12
    prm["linear_solver"                 ] = "mumps"
    # prm["sign"                          ] = "default"
    # prm["method"                        ] = "vinewtonssls"
@@ -375,7 +379,6 @@ def RungeKutta2(ans_now, ans_nxt, nlSolver):
 
 # ans_last.assign(ans_next)
 
-# OMEGA.assign(1E-4)
 # nlSolver2.solve()
 
 OMEGA.assign(cons_ome)
