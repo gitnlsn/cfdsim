@@ -17,9 +17,10 @@ mesh_0   = 0.0
 mesh_D   = 0.015
 mesh_L   = 0.050
 mesh_H   = 0.001
-mesh_Cx     = 0.0025
+mesh_Cx     = 0.005
 mesh_Cy     = 0.5*mesh_D
 mesh_obstr  = 0.0025
+mesh_R      = 0.002
 
 cons_dt  = 1.0E-2
 cons_rho = 1.0E+3
@@ -44,7 +45,10 @@ part1 = Rectangle(
 part2 = Rectangle(
    Point(mesh_Cx -mesh_obstr, mesh_Cy -mesh_obstr),
    Point(mesh_Cx +mesh_obstr, mesh_Cy +mesh_obstr)    )
-channel = part1 -part2
+part3 = Circle(
+   Point(mesh_Cx, mesh_Cy),
+   mesh_R                     )
+channel = part1 -part3
 mesh = generate_mesh(channel, mesh_res)
 
 # ------ BOUNDARIES ------ #
