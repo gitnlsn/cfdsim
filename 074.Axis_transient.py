@@ -15,7 +15,7 @@ from math      import pi, tan
 foldername = 'results_AxisFlowBenchmark'
 
 # ------ TMIXER GEOMETRY PARAMETERS ------ #
-mesh_res  = 200
+mesh_res = 300
 mesh_P0  = 0.0
 mesh_Dc  = 102.0E-3
 mesh_Di  =   8.7E-3
@@ -31,9 +31,9 @@ cons_rho    = 1.0E+3             # densidade agua
 cons_rhoP   = 5.0E+3             # densidade particulado
 cons_mu     = 1.0E-3             # viscosidade agua
 cons_ome    = 1.5E-3             # velocidade angular tampa
-cons_dt     = 2.5E-4               # intervalo de tempo
+cons_dt     = 1.0E-3             # intervalo de tempo
 cons_gg     = 9.8                # gravidade
-cons_vin    = 1.00E-1
+cons_vin    = 1.00E-4
 cons_dp     = 3.35E-6            # tamanho da particula: 3.35; 10.25; 19.37; 28.27; 38; 63
 cons_u_00   = 0                  # velocidade nula
 
@@ -61,14 +61,14 @@ mesh_tol = mesh.hmax()/3.0
 outlet1  = '(  on_boundary && (x[0]< '+str(mesh_Dv/2.0 +mesh_tol)                            +') '\
          + '&& (x[1]>='+str(mesh_Lv/2.0 +(mesh_Dc -mesh_Ds)/(2.0*tan(mesh_th)) +mesh_Lc -mesh_tol )            +')  )'
 outlet2  = '(  near(x[1],'+str(mesh_P0)                                                      +') '\
-         + '&&  (x[0]< '+str(mesh_Ds/2.0 +mesh_tol )                                                           +')  )'
+         + '&& (x[0]< '+str(mesh_Ds/2.0 +mesh_tol )                                                            +')  )'
 inlet    = '(  on_boundary && (x[0]=='+str(mesh_Dc/2.0)                                      +') '\
          + '&& (x[1]>='+str(mesh_Lv/2.0 +(mesh_Dc -mesh_Ds)/(2.0*tan(mesh_th)) +mesh_Lc -mesh_tol -mesh_Di )   +')  )'
 middle   = '(   (x[0]=='+str(mesh_P0)+')  )'
 walls    = 'on_boundary && (x[0]>'+str(mesh_P0)+')' \
          + '&& !( (x[1]=='+str(mesh_P0)+') && (x[0]<'+str(mesh_Ds/2.0)+') )'\
          + '&& !( (x[1]>='+str(mesh_Lv/2.0 +(mesh_Dc -mesh_Ds)/(2.0*tan(mesh_th)) +mesh_Lc -mesh_tol)+') '\
-               + '&& (x[0]<'+str(mesh_Dv/2.0)+') )'\
+         +        '&& (x[0]<'+str(mesh_Dv/2.0)+') )'\
 
 ds_outlet1, ds_outlet2, ds_middle, ds_walls, ds_inlet = 1,2,3,4,5
 
@@ -86,16 +86,16 @@ side_outlet2.mark (boundaries, ds_outlet2 )
 side_inlet.mark   (boundaries, ds_inlet   )
 ds = Measure( 'ds', subdomain_data=boundaries )
 
-dx_inlet = 1
-domain   = CellFunction  ('size_t', mesh)
-inlet    = '('                                                                                           \
-         +  '     (x[0]<'+str(mesh_Dc/2.0          +mesh_tol)+')'                                                 \
-         +  '  && (x[0]>'+str(mesh_Dc/2.0 -mesh_Di -mesh_tol)+')'                                                 \
-         +  '  && (x[1]<'+str(mesh_Lv/2.0 +(mesh_Dc -mesh_Ds)/(2.0*tan(mesh_th)) +mesh_Lc          +mesh_tol)+')' \
-         +  '  && (x[1]>'+str(mesh_Lv/2.0 +(mesh_Dc -mesh_Ds)/(2.0*tan(mesh_th)) +mesh_Lc -mesh_Di -mesh_tol)+')' \
-         +' )'
-CompiledSubDomain( inlet ).mark( domain, dx_inlet )
-dx = Measure('dx', subdomain_data=domain )
+# dx_inlet = 1
+# domain   = CellFunction  ('size_t', mesh)
+# inlet    = '('                                                                                           \
+#          +  '     (x[0]<'+str(mesh_Dc/2.0          +mesh_tol)+')'                                                 \
+#          +  '  && (x[0]>'+str(mesh_Dc/2.0 -mesh_Di -mesh_tol)+')'                                                 \
+#          +  '  && (x[1]<'+str(mesh_Lv/2.0 +(mesh_Dc -mesh_Ds)/(2.0*tan(mesh_th)) +mesh_Lc          +mesh_tol)+')' \
+#          +  '  && (x[1]>'+str(mesh_Lv/2.0 +(mesh_Dc -mesh_Ds)/(2.0*tan(mesh_th)) +mesh_Lc -mesh_Di -mesh_tol)+')' \
+#          +' )'
+# CompiledSubDomain( inlet ).mark( domain, dx_inlet )
+# dx = Measure('dx', subdomain_data=domain )
 
 # plot(domain); interactive()
 
@@ -103,7 +103,7 @@ dx = Measure('dx', subdomain_data=domain )
 FE_u  = FiniteElement('P', 'triangle', 2)
 FE_p  = FiniteElement('P', 'triangle', 1)
 FE_a  = FiniteElement('P', 'triangle', 1)
-elem  = MixedElement([FE_u, FE_u, FE_u, FE_p, FE_a])
+elem  = MixedElement([FE_u, FE_u, FE_u, FE_p])
 U     = FunctionSpace(mesh, elem)
 
 U_prs  = FunctionSpace(mesh, FE_p)
@@ -116,9 +116,13 @@ U_vel3 = FunctionSpace(mesh, MixedElement([FE_u, FE_u, FE_u    ]) )
 ans_next = Function(U)
 ans_last = Function(U)
 
-ur_n,ut_n,uw_n,pp_n,aa_n = split(ans_next)
-ur_l,ut_l,uw_l,pp_l,aa_l = split(ans_last)
-vr,vt,vw,qq,bb = TestFunctions(U)
+aa_n  = Function(U_con)
+aa_l  = Function(U_con)
+bb    = TestFunction(U_con)
+
+ur_n,ut_n,uw_n,pp_n = split(ans_next)
+ur_l,ut_l,uw_l,pp_l = split(ans_last)
+vr,vt,vw,qq = TestFunctions(U)
 
 uu_n = as_vector( [ur_n,ut_n,uw_n] )
 uu_l = as_vector( [ur_l,ut_l,uw_l] )
@@ -203,27 +207,28 @@ vorticity  = as_vector([  -Dx(ut_md,dw),
 frep  = Constant(0.5)
 u_pmi = dP*dP*(RHO_p -RHO)/(18*frep*MU) *(GG +grad_scalar(pp_md)/RHO_p)
 
-F1    = inner(RHO*uu_df/DT,vv)                  *dx \
-      + inner(RHO*dot(uu_md,grad_uu_md.T), vv)  *dx \
-      + inner(sigma_md, grad_vv)                *dx \
+F1    = \
+      + inner(RHO*dot(uu_n,grad_uu_n.T), vv)  *dx \
+      + inner(sigma_n, grad_vv)                *dx \
       + div_uu_n*qq                             *dx \
-      + inner(aa_df/DT, bb)                     *dx \
-      + div_cyl((uu_md)*aa_md) *bb              *dx \
-      + inner(grad_aa_md, grad_bb)*Constant(1E-8)*dx \
-      + inner(dot(uu_md, grad_aa_md),      dot(uu_md, grad_bb))   *DT/N2 *dx
+      # + inner(RHO*uu_df/DT,vv)                  *dx \
+      # + inner(aa_df/DT, bb)                     *dx \
+      # + div_cyl((uu_md)*aa_md) *bb              *dx \
+      # + inner(grad_aa_md, grad_bb)*Constant(1E-8)*dx \
+      # + inner(dot(uu_md, grad_aa_md),      dot(uu_md, grad_bb))   *DT/N2 *dx
       # - inner(RHO*GG, vv)                       *dx \
       # - inner(dot(SIGMA_DS, NORMAL), vv)        *ds(ds_inlet) \
       # + inner(grad_scalar(pp_md),          dot(uu_md,grad_vv.T))  *DT/N2 *dx \
       # + inner(RHO*dot(uu_md,grad_uu_md.T), dot(uu_md,grad_vv.T))  *DT/N2 *dx \
 
-F2    = inner(RHO*dot(uu_n,grad_uu_n.T), vv)    *dx \
-      + inner(sigma_n, grad_vv)                 *dx \
-      + div_uu_n*qq                             *dx \
-      + div_cyl((uu_n)*aa_n) *bb                *dx \
-      + inner(grad_aa_n, grad_bb)*Constant(1E-8)*dx
+F2    = inner(aa_df/DT, bb)                     *dx \
+      + div_cyl((uu_md)*aa_md) *bb              *dx \
+      + inner(grad_aa_md, grad_bb)*Constant(1E-8)*dx \
+      + inner(dot(uu_md, grad_aa_md),      dot(uu_md, grad_bb))   *DT/N2 *dx
 
-u_00     = Constant(cons_u_00 )
-u_in     = Constant(cons_vin  )
+u_00     = Constant( cons_u_00 )
+ur_in    = Constant(-cons_vin  )
+ut_in    = Constant( cons_vin*10.0  )
 ut_up    = Expression('omega*x[0]', omega=OMEGA, degree=2)
 a_in1    = Constant(1.0)
 a_in2    = Constant(0.0)
@@ -237,20 +242,22 @@ BC1 = [
          DirichletBC(U.sub(p_uw), u_00,   walls  ),
          # DirichletBC(U.sub(p_ur), u_00,   middle ),
          # DirichletBC(U.sub(p_ut), u_00,   middle ),
-         DirichletBC(U.sub(p_aa), a_in,   inlet  ),
-         DirichletBC(U.sub(p_ut), u_in,   inlet  ),
-         DirichletBC(U.sub(p_ur), u_in,   inlet  ),
+         # DirichletBC(U.sub(p_aa), a_in,   inlet  ),
+         DirichletBC(U.sub(p_ut), ut_in,  inlet  ),
+         DirichletBC(U.sub(p_ur), ur_in,  inlet  ),
+         DirichletBC(U.sub(p_uw), u_00,   inlet  ),
       ] # end - BC #
 
 BC2 = [
-         DirichletBC(U.sub(p_ur), u_00,   walls  ),
-         DirichletBC(U.sub(p_ut), u_00,   walls  ),
-         DirichletBC(U.sub(p_uw), u_00,   walls  ),
+         # DirichletBC(U.sub(p_ur), u_00,   walls  ),
+         # DirichletBC(U.sub(p_ut), u_00,   walls  ),
+         # DirichletBC(U.sub(p_uw), u_00,   walls  ),
          # DirichletBC(U.sub(p_ur), u_00,   middle ),
          # DirichletBC(U.sub(p_ut), u_00,   middle ),
-         DirichletBC(U.sub(p_aa), a_in,   inlet  ),
-         DirichletBC(U.sub(p_ut), u_in,   inlet  ),
-         DirichletBC(U.sub(p_ur), u_in,   inlet  ),
+         DirichletBC(U_con, a_in,   inlet  ),
+         # DirichletBC(U.sub(p_ut), ut_in,  inlet  ),
+         # DirichletBC(U.sub(p_ur), ur_in,  inlet  ),
+         # DirichletBC(U.sub(p_uw), u_00,   inlet  ),
       ] # end - BC #
 
 # ------ NON LINEAR PROBLEM DEFINITIONS ------ #
@@ -265,8 +272,8 @@ nlProblem1 = NonlinearVariationalProblem(F1, ans_next, BC1, dF1)
 nlSolver1  = NonlinearVariationalSolver(nlProblem1)
 nlSolver1.parameters["nonlinear_solver"] = "snes"
 
-dF2 = derivative(F2, ans_next)
-nlProblem2 = NonlinearVariationalProblem(F2, ans_next, BC2, dF2)
+dF2 = derivative(F2, aa_n)
+nlProblem2 = NonlinearVariationalProblem(F2, aa_n, BC2, dF2)
 # nlProblem2.set_bounds(lowBound,uppBound)
 nlSolver2  = NonlinearVariationalSolver(nlProblem2)
 nlSolver2.parameters["nonlinear_solver"] = "snes"
@@ -302,17 +309,17 @@ vtk_aa   = File(foldername+'/concentration.pvd')
 # vtk_ur   = File(foldername+'/velocity_radial.pvd')
 # vtk_uw   = File(foldername+'/velocity_axial.pvd')
 
-def save_results(ans,Re):
+def save_results(ans,ans_con,Re):
    p_radial          = 0
    p_tangencial      = 1
    p_axial           = 2
    p_pressure        = 3
-   p_concentration   = 4
+   # p_concentration   = 4
    u_rad = ans[ p_radial         ]
    u_tan = ans[ p_tangencial     ]
    u_axe = ans[ p_axial          ]
    p_prs = ans[ p_pressure       ]
-   a_con = ans[ p_concentration  ]
+   a_con = ans_con
    uu_viz = project(as_vector([u_rad,u_axe]), U_vel2); uu_viz.rename('velocity','velocity');       vtk_uu << (uu_viz,Re)
    ut_viz = project(u_tan , U_vel1); ut_viz.rename('velocity tangencial','velocity tangencial');   vtk_ut << (ut_viz,Re)
    pp_viz = project(p_prs , U_prs ); pp_viz.rename('pressure','pressure');                         vtk_pp << (pp_viz,Re)
@@ -339,13 +346,11 @@ def plot_all(ans):
    # plot(u_axe,                   title='velocity_axial'     )
    # plot(u_rad,                   title='velocity_radial'    )
 
-def RungeKutta2(ans_now, ans_nxt, nlSolver):
+def RungeKutta2(ans_now, ans_nxt, nlSolver, U):
    ans_aux  = Function(U)
    ans_aux.assign(ans_now)
    RK1      = Function(U)
    RK2      = Function(U)
-   RK3      = Function(U)
-   RK4      = Function(U)
    # 1st iteration
    ans_now.assign( ans_aux )
    nlSolver.solve()
@@ -379,21 +384,27 @@ def RungeKutta2(ans_now, ans_nxt, nlSolver):
 
 # ans_last.assign(ans_next)
 
-# nlSolver2.solve()
+for u in [1E-4, 1E-3, 1E-2]:
+   nlSolver1.solve()
 
-OMEGA.assign(cons_ome)
+save_results(ans_next, aa_n, val_time)
+
+# OMEGA.assign(cons_ome)
 count_iteration   = 0
 val_time = 0
 while( count_iteration < TRANSIENT_MAX_ITE ):
    count_iteration = count_iteration +1
    val_time = val_time + cons_dt
    print ('Iteration: {}'.format(count_iteration) )
-   RungeKutta2(ans_last, ans_next, nlSolver1)
+   # RungeKutta2(ans_last, ans_next, nlSolver1, U     )
+   RungeKutta2(aa_l,     aa_n,     nlSolver2, U_con )
    #nlSolver1.solve()
    residual = assemble(inner(ans_next -ans_last,ans_next -ans_last)*dx)
    print ('Residual : {}'.format(residual) )
    ans_last.assign(ans_next)
-   save_results(ans_next,val_time)
+   aa_l.assign(aa_n)
+   save_results(ans_next, aa_n, val_time)
+
 
 
 

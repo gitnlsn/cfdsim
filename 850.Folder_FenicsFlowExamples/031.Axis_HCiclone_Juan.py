@@ -78,7 +78,7 @@ N2 = Constant(2)
 MU = Constant(mu)
 R0 = Constant(rho)
 GG = Constant(grav)
-r = Expression('x[0]', degree=2)
+r  = Expression('x[0]', degree=2)
 
 v_in = Constant(v_in)
 u = as_vector([ur,ut,uw])

@@ -4,7 +4,7 @@ from mshr import *
 from math import pi
 
 # ------ PARAMETROS SIMULACAO ------ #
-res     = 150
+res     = 200
 v_inlet = 1E-6
 
 # ------ PARAMETROS FISICOS ------ #
