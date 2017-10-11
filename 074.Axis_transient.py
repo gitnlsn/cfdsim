@@ -384,12 +384,11 @@ def RungeKutta2(ans_now, ans_nxt, nlSolver, U):
 
 # ans_last.assign(ans_next)
 
-for u in [1E-4, 1E-3, 1E-2]:
+for u in [1E-4, 1E-3, 1E-2, 1E-1]:
+   ur_in.assign(u    )
+   ut_in.assign(u*10 )
    nlSolver1.solve()
 
-save_results(ans_next, aa_n, val_time)
-
-# OMEGA.assign(cons_ome)
 count_iteration   = 0
 val_time = 0
 while( count_iteration < TRANSIENT_MAX_ITE ):
@@ -399,7 +398,7 @@ while( count_iteration < TRANSIENT_MAX_ITE ):
    # RungeKutta2(ans_last, ans_next, nlSolver1, U     )
    RungeKutta2(aa_l,     aa_n,     nlSolver2, U_con )
    #nlSolver1.solve()
-   residual = assemble(inner(ans_next -ans_last,ans_next -ans_last)*dx)
+   residual = assemble(inner(aa_n -aa_l,aa_n -aa_l)*dx)
    print ('Residual : {}'.format(residual) )
    ans_last.assign(ans_next)
    aa_l.assign(aa_n)
