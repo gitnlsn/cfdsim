@@ -282,11 +282,11 @@ nlSolver2.parameters["nonlinear_solver"] = "snes"
 # nlSolver2.solve(1E-16)
 
 prm1 = nlSolver1.parameters["snes_solver"]
-# prm2 = nlSolver2.parameters["snes_solver"]
+prm2 = nlSolver2.parameters["snes_solver"]
 for prm in [prm1]:
    prm["error_on_nonconvergence"       ] = False
    prm["solution_tolerance"            ] = 1.0E-16
-   prm["maximum_iterations"            ] = 15
+   prm["maximum_iterations"            ] = 25
    prm["maximum_residual_evaluations"  ] = 20000
    prm["absolute_tolerance"            ] = 8.0E-12
    prm["relative_tolerance"            ] = 6.0E-12
@@ -384,10 +384,13 @@ def RungeKutta2(ans_now, ans_nxt, nlSolver, U):
 
 # ans_last.assign(ans_next)
 
-for u in [1E-4, 1E-3, 1E-2, 1E-1]:
-   ur_in.assign(u    )
-   ut_in.assign(u*10 )
+for u in [ 10**(-4+exp*0.025) for exp in range(80) ]:
+   print ('Velocity: {}'.format(u))
+   ur_in.assign(  u     )
+   ut_in.assign(  u*10  )
    nlSolver1.solve()
+
+save_results(ans_next, aa_n, 0)
 
 count_iteration   = 0
 val_time = 0
