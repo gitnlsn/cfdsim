@@ -13,7 +13,7 @@ from mshr            import *
 
 # ------ SIMULATION PARAMETERS ------ #
 filename = 'results_VonKarman'
-mesh_res = 100
+mesh_res = 300
 mesh_0   = 0.0
 mesh_D   = 0.001
 mesh_L   = 0.003
@@ -23,7 +23,7 @@ mesh_Cx     = 0.5*mesh_D
 mesh_obstr  = 0.0025
 mesh_R      = 0.5E-4
 
-cons_dt  = 5.0E-5
+cons_dt  = 1.0E-5
 cons_rho = 1.0E+3
 cons_mu  = 1.0E-3
 cons_dd  = 1.0E-8
@@ -31,6 +31,7 @@ cons_v1  = 1.0E-0
 cons_pout = 0
 
 T_vk     = (mesh_R*2)/(0.2*cons_v1)
+N_steps  = int(T_vk/cons_dt)
 
 TRANSIENT_MAX_TIME = 3.0E-3
 
@@ -230,17 +231,17 @@ class SimulationRecord(object):
       return assemble( inner(u_torecord, FacetNormal(mesh))*ds(ds_outlet) )
    
    def get_properties(self):
-      prop_eta       = 0.0
-      prop_deltaP    = 0.0
-      prop_flowRate  = 0.0
-      N_steps  = int(self.T_vk/self.dt)
-      print self.record
-      for i in range( int(self.T_vk/self.dt) ):
-         vertical_position = self.record.shape[0]-1-i
-         prop_eta       = prop_eta        + self.record[vertical_position][0]
-         prop_deltaP    = prop_deltaP     + self.record[vertical_position][1]
-         prop_flowRate  = prop_flowRate   + self.record[vertical_position][2]
-      return prop_eta/N_steps, prop_deltaP/N_steps, prop_flowRate/N_steps
+      if rank==0:
+         prop_eta       = 0.0
+         prop_deltaP    = 0.0
+         prop_flowRate  = 0.0
+         print self.record[-10:,:]
+         for i in range( N_steps ):
+            vertical_position = self.record.shape[0]-1-i
+            prop_eta       = prop_eta        + self.record[vertical_position][0]
+            prop_deltaP    = prop_deltaP     + self.record[vertical_position][1]
+            prop_flowRate  = prop_flowRate   + self.record[vertical_position][2]
+         return prop_eta/N_steps, prop_deltaP/N_steps, prop_flowRate/N_steps
 
 # ------ TRANSIENT SIMULATION ------ #
 t                 = 0
@@ -262,6 +263,6 @@ while( t < TRANSIENT_MAX_TIME ):
    if rank==0:
       print ('Residual : {}'.format(residual) )
       print ('Iteration: {}'.format(count_iteration) )
-   if count_iteration > int(T_vk/cons_dt):
+   if count_iteration > N_steps:
       print tape.get_properties()
 
