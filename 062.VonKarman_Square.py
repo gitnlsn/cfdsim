@@ -13,7 +13,7 @@ from mshr            import *
 
 # ------ SIMULATION PARAMETERS ------ #
 filename = 'results_VonKarman'
-mesh_res = 300
+mesh_res = 200
 mesh_0   = 0.0
 mesh_D   = 0.001
 mesh_L   = 0.003
@@ -23,7 +23,7 @@ mesh_Cx     = 0.5*mesh_D
 mesh_obstr  = 0.0025
 mesh_R      = 0.5E-4
 
-cons_dt  = 1.0E-5
+cons_dt  = 5.0E-5
 cons_rho = 1.0E+3
 cons_mu  = 1.0E-3
 cons_dd  = 1.0E-8
@@ -221,7 +221,7 @@ class SimulationRecord(object):
    
    def calc_mixtureEfficiency (self, u_torecord, p_torecord, a_torecord):
       a_opt = Constant(0.5)
-      return assemble( (a_torecord -a_opt)**2*ds(ds_outlet) )
+      return 1.0 - assemble( (a_torecord -a_opt)**2*ds(ds_outlet) )/assemble( (a_torecord -a_opt)**2*ds(ds_inlet) )
    
    def calc_pressureDrop      (self, u_torecord, p_torecord, a_torecord):
       return  assemble( p_torecord*ds(ds_inlet ) )/mesh_D \
