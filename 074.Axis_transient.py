@@ -15,7 +15,7 @@ from math      import pi, tan
 foldername = 'results_AxisFlowBenchmark'
 
 # ------ TMIXER GEOMETRY PARAMETERS ------ #
-mesh_res = 300
+mesh_res = 200
 mesh_P0  = 0.0
 mesh_Dc  = 102.0E-3
 mesh_Di  =   8.7E-3
@@ -384,13 +384,14 @@ def RungeKutta2(ans_now, ans_nxt, nlSolver, U):
 
 # ans_last.assign(ans_next)
 
-for u in [ 10**(-4+exp*0.025) for exp in range(80) ]:
+for u in [ 10**(-4+exp*0.01) for exp in range(300) ]:
    print ('Velocity: {}'.format(u))
    ur_in.assign(  u     )
    ut_in.assign(  u*10  )
+   assign(ans_next.sub(p_pp), project(Constant(0), U_prs))
    nlSolver1.solve()
 
-save_results(ans_next, aa_n, 0)
+save_results(ans_next, aa_n, 0.0)
 
 count_iteration   = 0
 val_time = 0

@@ -7,36 +7,35 @@ NELSON KENZO TAMASHIRO
 '''
 
 # ------ LIBRARIES ------ #
+from numpy           import *
 from fenics          import *
 from mshr            import *
 
 # ------ SIMULATION PARAMETERS ------ #
 filename = 'results_VonKarman'
-mesh_res = 200
+mesh_res = 100
 mesh_0   = 0.0
-mesh_D   = 0.015
-mesh_L   = 0.050
+mesh_D   = 0.001
+mesh_L   = 0.003
 mesh_H   = 0.001
-mesh_Cx     = 0.005
 mesh_Cy     = 0.5*mesh_D
+mesh_Cx     = 0.5*mesh_D
 mesh_obstr  = 0.0025
-mesh_R      = 0.002
+mesh_R      = 0.5E-4
 
-cons_dt  = 1.0E-2
+cons_dt  = 5.0E-5
 cons_rho = 1.0E+3
 cons_mu  = 1.0E-3
 cons_dd  = 1.0E-8
-cons_v1  = 1.0E-1
+cons_v1  = 1.0E-0
 cons_pout = 0
 
-# a_min = 0
-# a_max = 1.01
-# v_max = cons_v1*50
-# p_min = -1.0E5
-# p_max =  1.0E5
+T_vk     = (mesh_R*2)/(0.2*cons_v1)
 
-TRANSIENT_MAX_ITE  = 200
-TRANSIENT_MAX_TIME = 6.0
+TRANSIENT_MAX_TIME = 3.0E-3
+
+comm = mpi_comm_world()
+rank = MPI.rank(comm)
 
 # ------ MESH ------ #
 part1 = Rectangle(
@@ -50,6 +49,7 @@ part3 = Circle(
    mesh_R                     )
 channel = part1 -part3
 mesh = generate_mesh(channel, mesh_res)
+# plot(mesh)
 
 # ------ BOUNDARIES ------ #
 inlet  = '( x[0]=='+str(0.0*mesh_L)+' )'
@@ -170,18 +170,18 @@ prm2 = nlSolver2.parameters["snes_solver"]
 prm3 = nlSolver3.parameters["snes_solver"]
 prm4 = nlSolver4.parameters["snes_solver"]
 for prm in [prm1, prm2, prm3, prm4]:
-   prm["error_on_nonconvergence"       ] = True
+   prm["error_on_nonconvergence"       ] = False
    prm["solution_tolerance"            ] = 1.0E-16
    prm["maximum_iterations"            ] = 15
    prm["maximum_residual_evaluations"  ] = 20000
-   prm["absolute_tolerance"            ] = 9.0E-13
-   prm["relative_tolerance"            ] = 8.0E-13
+   prm["absolute_tolerance"            ] = 9.0E-15
+   prm["relative_tolerance"            ] = 8.0E-15
    prm["linear_solver"                 ] = "mumps"
    #prm["sign"                          ] = "default"
    #prm["method"                        ] = "vinewtonssls"
    #prm["line_search"                   ] = "bt"
    #prm["preconditioner"                ] = "none"
-   #prm["report"                        ] = True
+   #prm["report"                        ] = True5
    #prm["krylov_solver"                 ]
    #prm["lu_solver"                     ]
 
@@ -203,9 +203,49 @@ def save_flow(u_tosave, p_tosave, a_tosave,time):
    vtk_pp << (pi,time)
    vtk_aa << (ai,time)
 
+class SimulationRecord(object):
+   
+   def __init__(self, dt, T_vk):
+      self.record = zeros(3)
+      self.dt     = dt
+      self.T_vk   = T_vk
+   
+   def add_step(self, u_torecord, p_torecord, a_torecord):
+      new_step = hstack([ 
+         self.calc_mixtureEfficiency  (u_torecord, p_torecord, a_torecord),
+         self.calc_pressureDrop       (u_torecord, p_torecord, a_torecord),
+         self.calc_flowRate           (u_torecord, p_torecord, a_torecord),         ])
+      if rank==0:
+         self.record = vstack([ self.record, new_step ])
+   
+   def calc_mixtureEfficiency (self, u_torecord, p_torecord, a_torecord):
+      a_opt = Constant(0.5)
+      return assemble( (a_torecord -a_opt)**2*ds(ds_outlet) )
+   
+   def calc_pressureDrop      (self, u_torecord, p_torecord, a_torecord):
+      return  assemble( p_torecord*ds(ds_inlet ) )/mesh_D \
+            - assemble( p_torecord*ds(ds_outlet) )/mesh_D
+   
+   def calc_flowRate          (self, u_torecord, p_torecord, a_torecord):
+      return assemble( inner(u_torecord, FacetNormal(mesh))*ds(ds_outlet) )
+   
+   def get_properties(self):
+      prop_eta       = 0.0
+      prop_deltaP    = 0.0
+      prop_flowRate  = 0.0
+      N_steps  = int(self.T_vk/self.dt)
+      print self.record
+      for i in range( int(self.T_vk/self.dt) ):
+         vertical_position = self.record.shape[0]-1-i
+         prop_eta       = prop_eta        + self.record[vertical_position][0]
+         prop_deltaP    = prop_deltaP     + self.record[vertical_position][1]
+         prop_flowRate  = prop_flowRate   + self.record[vertical_position][2]
+      return prop_eta/N_steps, prop_deltaP/N_steps, prop_flowRate/N_steps
+
 # ------ TRANSIENT SIMULATION ------ #
 t                 = 0
 count_iteration   = 0
+tape              = SimulationRecord(cons_dt, T_vk)
 while( t < TRANSIENT_MAX_TIME ):
    count_iteration = count_iteration +1
    t = t +cons_dt
@@ -215,10 +255,13 @@ while( t < TRANSIENT_MAX_TIME ):
    nlSolver4.solve()
    residual = assemble( inner(a_nxt -a_lst,a_nxt -a_lst)*dx
                        +inner(u_nxt -u_lst,u_nxt -u_lst)*dx )
-   print ('Residual : {}'.format(residual) )
-   print ('Iteration: {}'.format(count_iteration) )
    save_flow( u_nxt,p_nxt,a_nxt,t )
    u_lst.assign(u_nxt)
    a_lst.assign(a_nxt)
-
+   tape.add_step(u_nxt,p_nxt,a_nxt)
+   if rank==0:
+      print ('Residual : {}'.format(residual) )
+      print ('Iteration: {}'.format(count_iteration) )
+   if count_iteration > int(T_vk/cons_dt):
+      print tape.get_properties()
 
