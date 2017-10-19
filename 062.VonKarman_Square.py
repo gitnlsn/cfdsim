@@ -13,7 +13,7 @@ from mshr            import *
 
 # ------ SIMULATION PARAMETERS ------ #
 filename = 'results_VonKarman'
-mesh_res = 200
+mesh_res = 250
 mesh_0   = 0.0
 mesh_D   = 0.001
 mesh_L   = 0.003
@@ -33,7 +33,7 @@ cons_pout = 0
 T_vk     = (mesh_R*2)/(0.2*cons_v1)
 N_steps  = int(T_vk/cons_dt)
 
-TRANSIENT_MAX_TIME = 3.0E-3
+TRANSIENT_MAX_TIME = 3.0E-2
 
 comm = mpi_comm_world()
 rank = MPI.rank(comm)
