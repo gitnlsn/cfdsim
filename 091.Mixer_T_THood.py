@@ -21,7 +21,7 @@ from mshr            import *
 
 # ------ TMIXER GEOMETRY PARAMETERS ------ #
 filename = 'results_Tmixer'
-mesh_res    = 200
+mesh_res    = 300
 mesh_0      = 0.0
 mesh_D      = 0.010
 mesh_L      = 0.085
@@ -166,8 +166,8 @@ for vel in [10**-(2+0.01*exp) for exp in range(200)]:
    u_in.assign( vel )
    nlSolver1.solve()
    save_flow(u,p,a, vel)
-   properties = get_properties(u,p,a)
+   prop = get_properties(u,p,a)
    if rank==0:
       print ('Solved for velocity = {}'.format(vel))
-      print ('Properties: {}'.format(properties))
+      print ('Properties: {}, {}, {}, {}'.format(vel, prop[0], prop[1], prop[2]))
 
