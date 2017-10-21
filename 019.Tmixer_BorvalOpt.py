@@ -118,9 +118,9 @@ U_AA = FunctionSpace(mesh, FE_A)
 
 # ------ FORMULACAO VARIACIONAL ------ #
 x,y = 0,1
-ans = Function(U)
-ux,uy,p,a = split(ans)
-vx,vy,q,b = TestFunctions(U)
+ans         = Function(U)
+ux,uy,p,a   = split(ans)
+vx,vy,q,b   = TestFunctions(U)
 
 class gam_wave(Expression):
    def eval(self, value, x):

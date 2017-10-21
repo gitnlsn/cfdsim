@@ -13,7 +13,7 @@ from mshr            import *
 
 # ------ SIMULATION PARAMETERS ------ #
 filename = 'results_VonKarman'
-mesh_res = 250
+mesh_res = 200
 mesh_0   = 0.0
 mesh_D   = 0.001
 mesh_L   = 0.003
@@ -235,7 +235,7 @@ class SimulationRecord(object):
          prop_eta       = 0.0
          prop_deltaP    = 0.0
          prop_flowRate  = 0.0
-         print self.record[-10:,:]
+         print self.record[-N_steps:,:]
          for i in range( N_steps ):
             vertical_position = self.record.shape[0]-1-i
             prop_eta       = prop_eta        + self.record[vertical_position][0]
