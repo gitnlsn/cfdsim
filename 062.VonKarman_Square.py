@@ -264,7 +264,7 @@ while( t < TRANSIENT_MAX_TIME ):
       print ('Residual : {}'.format(residual) )
       print ('Iteration: {}'.format(count_iteration) )
    if count_iteration > N_steps:
-      prop = tape.get_properties(u,p,a)
+      prop = tape.get_properties(u_nxt,p_nxt,an)
       print ('Properties: {}, {}, {}, {}'.format(t, prop[0], prop[1], prop[2]))
 
 
