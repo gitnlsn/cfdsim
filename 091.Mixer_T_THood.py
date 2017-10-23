@@ -21,7 +21,7 @@ from mshr            import *
 
 # ------ TMIXER GEOMETRY PARAMETERS ------ #
 filename = 'results_Tmixer'
-mesh_res    = 300
+mesh_res    = 500
 mesh_0      = 0.0
 mesh_D      = 0.010
 mesh_L      = 0.085

@@ -13,13 +13,13 @@ from mshr            import *
 
 # ------ SIMULATION PARAMETERS ------ #
 filename = 'results_VonKarman'
-mesh_res = 200
+mesh_res = 180
 mesh_0   = 0.0
 mesh_D   = 0.001
 mesh_L   = 0.003
 mesh_H   = 0.001
 mesh_Cy     = 0.5*mesh_D
-mesh_Cx     = 0.5*mesh_D
+mesh_Cx     = 0.4*mesh_D
 mesh_obstr  = 0.0025
 mesh_R      = 0.5E-4
 
@@ -27,7 +27,7 @@ cons_dt  = 5.0E-5
 cons_rho = 1.0E+3
 cons_mu  = 1.0E-3
 cons_dd  = 1.0E-8
-cons_v1  = 1.0E-0
+cons_v1  = 2.0E-0
 cons_pout = 0
 
 T_vk     = (mesh_R*2)/(0.2*cons_v1)
@@ -228,7 +228,7 @@ class SimulationRecord(object):
             - assemble( p_torecord*ds(ds_outlet) )/mesh_D
    
    def calc_flowRate          (self, u_torecord, p_torecord, a_torecord):
-      return assemble( inner(u_torecord, FacetNormal(mesh))*ds(ds_outlet) )
+      return assemble( inner(u_torecord, FacetNormal(mesh))*ds(ds_outlet) )/mesh_D
    
    def get_properties(self):
       if rank==0:
@@ -265,4 +265,5 @@ while( t < TRANSIENT_MAX_TIME ):
       print ('Iteration: {}'.format(count_iteration) )
    if count_iteration > N_steps:
       print tape.get_properties()
+
 
