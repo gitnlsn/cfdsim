@@ -15,19 +15,19 @@ from mshr            import *
 filename = 'results_VonKarman'
 mesh_res = 300
 mesh_0   = 0.0
-mesh_D   = 0.001
-mesh_L   = 0.0025
+mesh_D   = 1000E-6
+mesh_L   = 4000E-6
 mesh_H   = 0.001
 mesh_Cy     = 0.5*mesh_D
 mesh_Cx     = 0.4*mesh_D
 mesh_obstr  = 0.0025
-mesh_R      = 0.5E-4
+mesh_R      = 125E-6
 
 cons_dt  = 5.0E-5
 cons_rho = 1.0E+3
 cons_mu  = 1.0E-3
 cons_dd  = 1.0E-8
-cons_v1  = 2.0E-0
+cons_v1  = 1.0E-0
 cons_pout = 0
 
 T_vk     = (mesh_R*2)/(0.2*cons_v1)
@@ -264,7 +264,8 @@ while( t < TRANSIENT_MAX_TIME ):
       print ('Residual : {}'.format(residual) )
       print ('Iteration: {}'.format(count_iteration) )
    if count_iteration > N_steps:
-      prop = tape.get_properties(u_nxt,p_nxt,a_nxt)
-      print ('Properties: {}, {}, {}, {}'.format(t, prop[0], prop[1], prop[2]))
+      prop = tape.get_properties()
+      if rank==0:
+         print ('Properties: {}, {}, {}, {}'.format(t, prop[0], prop[1], prop[2]))
 
 
