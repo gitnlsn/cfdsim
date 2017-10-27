@@ -27,7 +27,7 @@ cons_dt  = 5.0E-3
 cons_rho = 1.0E+3
 cons_mu  = 1.0E-3
 cons_dd  = 1.0E-8
-cons_v1  = 2.0/3.0*1E-1
+cons_v1  = 3.0/2.0*1E-1
 cons_pout = 0
 
 T_vk     = (mesh_obstr)/(0.2*cons_v1)
@@ -221,10 +221,10 @@ class SimulationRecord(object):
    
    def calc_mixtureEfficiency (self, u_torecord, p_torecord, a_torecord):
       a_opt = Constant(0.5)
-      return 1.0 - assemble( (a_torecord -a_opt)**2*ds(ds_outlet) )/assemble( (a_torecord -a_opt)**2*ds(ds_inlet) )
+      return 1.0 - assemble( (a_torecord -a_opt)**2*ds(ds_outlet) )/(assemble( (a_torecord -a_opt)**2*ds(ds_inlet) )*3.0/2.0)
    
    def calc_pressureDrop      (self, u_torecord, p_torecord, a_torecord):
-      return  assemble( p_torecord*ds(ds_inlet ) )/mesh_D \
+      return  assemble( p_torecord*ds(ds_inlet ) )/(mesh_D*3.0/2.0) \
             - assemble( p_torecord*ds(ds_outlet) )/mesh_D
    
    def calc_flowRate          (self, u_torecord, p_torecord, a_torecord):
