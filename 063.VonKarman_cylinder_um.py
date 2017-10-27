@@ -15,25 +15,25 @@ from mshr            import *
 filename = 'results_VonKarman'
 mesh_res = 300
 mesh_0   = 0.0
-mesh_D   = 15E-3
-mesh_L   = 60E-3
+mesh_D   = 1000E-6
+mesh_L   = 4000E-6
 mesh_H   = 0.001
 mesh_Cy     = 0.5*mesh_D
-mesh_Cx     = (1.0/6.0)*mesh_D
-mesh_obstr  = 2.5E-3
+mesh_Cx     = 0.4*mesh_D
+mesh_obstr  = 0.0025
 mesh_R      = 125E-6
 
-cons_dt  = 5.0E-3
+cons_dt  = 5.0E-5
 cons_rho = 1.0E+3
 cons_mu  = 1.0E-3
 cons_dd  = 1.0E-8
-cons_v1  = 2.0/3.0*1E-1
+cons_v1  = 1.0E-0
 cons_pout = 0
 
-T_vk     = (mesh_obstr)/(0.2*cons_v1)
+T_vk     = (mesh_R*2)/(0.2*cons_v1)
 N_steps  = int(5*T_vk/cons_dt)
 
-TRANSIENT_MAX_TIME = 3.0E-0
+TRANSIENT_MAX_TIME = 3.0E-2
 
 comm = mpi_comm_world()
 rank = MPI.rank(comm)
@@ -48,9 +48,9 @@ part2 = Rectangle(
 part3 = Circle(
    Point(mesh_Cx, mesh_Cy),
    mesh_R                     )
-channel = part1 -part2
+channel = part1 -part3
 mesh = generate_mesh(channel, mesh_res)
-# plot(mesh); interactive()
+# plot(mesh)
 
 # ------ BOUNDARIES ------ #
 inlet  = '( x[0]=='+str(0.0*mesh_L)+' )'
