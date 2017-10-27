@@ -243,6 +243,11 @@ class SimulationRecord(object):
             prop_flowRate  = prop_flowRate   + self.record[vertical_position][2]
          return prop_eta/N_steps, prop_deltaP/N_steps, prop_flowRate/N_steps
 
+
+   def get_properties_instant(self):
+      if rank==0:
+         return self.record[-1][0], self.record[-1][1], self.record[-1][2]
+
 # ------ TRANSIENT SIMULATION ------ #
 t                 = 0
 count_iteration   = 0
@@ -263,9 +268,6 @@ while( t < TRANSIENT_MAX_TIME ):
    if rank==0:
       print ('Residual : {}'.format(residual) )
       print ('Iteration: {}'.format(count_iteration) )
-   if count_iteration > N_steps:
-      prop = tape.get_properties()
-      if rank==0:
-         print ('Properties: {}, {}, {}, {}'.format(t, prop[0], prop[1], prop[2]))
-
-
+   prop = tape.get_properties_instant()
+   if rank==0:
+      print ('Properties: {}, {}, {}, {}'.format(t, prop[0], prop[1], prop[2]))
