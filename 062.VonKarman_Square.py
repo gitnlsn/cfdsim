@@ -207,29 +207,35 @@ def save_flow(u_tosave, p_tosave, a_tosave,time):
 class SimulationRecord(object):
    
    def __init__(self, dt, T_vk):
-      self.record = zeros(3)
+      self.record = zeros(4)
       self.dt     = dt
       self.T_vk   = T_vk
    
    def add_step(self, u_torecord, p_torecord, a_torecord):
       new_step = hstack([ 
-         self.calc_mixtureEfficiency  (u_torecord, p_torecord, a_torecord),
-         self.calc_pressureDrop       (u_torecord, p_torecord, a_torecord),
-         self.calc_flowRate           (u_torecord, p_torecord, a_torecord),         ])
+         self.calc_mixtureEfficiency   (u_torecord, p_torecord, a_torecord),
+         self.calc_pressureDrop        (u_torecord, p_torecord, a_torecord),
+         self.calc_flowRate            (u_torecord, p_torecord, a_torecord),
+         self.calc_power               (u_torecord, p_torecord, a_torecord),
+         ])
       if rank==0:
          self.record = vstack([ self.record, new_step ])
    
    def calc_mixtureEfficiency (self, u_torecord, p_torecord, a_torecord):
       a_opt = Constant(0.5)
-      return 1.0 - assemble( (a_torecord -a_opt)**2*ds(ds_outlet) )/(assemble( (a_torecord -a_opt)**2*ds(ds_inlet) )*3.0/2.0)
+      return 1.0 - assemble( (a_torecord -a_opt)**2*ds(ds_outlet) )\
+                 /(assemble( (a_torecord -a_opt)**2*ds(ds_inlet) )*3.0/2.0)
    
    def calc_pressureDrop      (self, u_torecord, p_torecord, a_torecord):
-      return  assemble( p_torecord*ds(ds_inlet ) )/(mesh_D*3.0/2.0) \
+      return  assemble( p_torecord*ds(ds_inlet ) )/(mesh_D*2.0/3.0) \
             - assemble( p_torecord*ds(ds_outlet) )/mesh_D
    
    def calc_flowRate          (self, u_torecord, p_torecord, a_torecord):
       return assemble( inner(u_torecord, FacetNormal(mesh))*ds(ds_outlet) )/mesh_D
-   
+
+   def calc_power             (self, u_torecord, p_torecord, a_torecord):
+      return  assemble( (RHO*inner(u_torecord, u_torecord)/2.0+p_torecord)*inner(u_torecord,FacetNormal(mesh))*ds )
+
    def get_properties(self):
       if rank==0:
          prop_eta       = 0.0
@@ -241,12 +247,12 @@ class SimulationRecord(object):
             prop_eta       = prop_eta        + self.record[vertical_position][0]
             prop_deltaP    = prop_deltaP     + self.record[vertical_position][1]
             prop_flowRate  = prop_flowRate   + self.record[vertical_position][2]
-         return prop_eta/N_steps, prop_deltaP/N_steps, prop_flowRate/N_steps
-
+            prop_power     = prop_power      + self.record[vertical_position][3]
+         return prop_eta/N_steps, prop_deltaP/N_steps, prop_flowRate/N_steps, prop_power/N_steps
 
    def get_properties_instant(self):
       if rank==0:
-         return self.record[-1][0], self.record[-1][1], self.record[-1][2]
+         return self.record[-1][0], self.record[-1][1], self.record[-1][2], self.record[-1][3]
 
 # ------ TRANSIENT SIMULATION ------ #
 t                 = 0
@@ -270,4 +276,4 @@ while( t < TRANSIENT_MAX_TIME ):
       print ('Iteration: {}'.format(count_iteration) )
    prop = tape.get_properties_instant()
    if rank==0:
-      print ('Properties: {}, {}, {}, {}'.format(t, prop[0], prop[1], prop[2]))
+      print ('Properties: {}, {}, {}, {}, {}'.format(t, prop[0], prop[1], prop[2], prop[3]))
