@@ -224,7 +224,7 @@ F1    = \
       # + inner(RHO*dot(uu_md,grad_uu_md.T), dot(uu_md,grad_vv.T))  *DT/N2 *dx \
 
 F2    = inner(aa_df/DT, bb)                     *dx \
-      + div_cyl((uu_md)*aa_md) *bb              *dx \
+      + div_cyl((uu_md +u_pmi)*aa_md) *bb              *dx \
       + inner(grad_aa_md, grad_bb)*Constant(1E-8)*dx \
       + inner(dot(uu_md, grad_aa_md),      dot(uu_md, grad_bb))   *DT/N2 *dx \
       - VI_IN*AA_IN/(2*PI*r)*bb                 *dx(dx_inlet)
@@ -290,10 +290,10 @@ prm2 = nlSolver2.parameters["snes_solver"]
 for prm in [prm1]:
    prm["error_on_nonconvergence"       ] = False
    prm["solution_tolerance"            ] = 1.0E-16
-   prm["maximum_iterations"            ] = 25
+   prm["maximum_iterations"            ] = 10
    prm["maximum_residual_evaluations"  ] = 20000
-   prm["absolute_tolerance"            ] = 8.0E-12
-   prm["relative_tolerance"            ] = 6.0E-12
+   prm["absolute_tolerance"            ] = 8.0E-14
+   prm["relative_tolerance"            ] = 4.0E-14
    prm["linear_solver"                 ] = "mumps"
    # prm["sign"                          ] = "default"
    # prm["method"                        ] = "vinewtonssls"
@@ -388,25 +388,25 @@ def RungeKutta2(ans_now, ans_nxt, nlSolver, U):
 
 # ans_last.assign(ans_next)
 
-for u_val in [ 10**(-3+exp*0.1) for exp in range(10) ]:
+for u_val in [ 10**(-2+exp*0.05) for exp in range(51) ]:
    print ('Velocity: {}'.format(u_val))
    VI_IN.assign(  u_val  )
    nlSolver1.solve()
-   save_results(ans_next, aa_n, u_val)
 
+save_results(ans_next, aa_n, u_val)
 
-# count_iteration   = 0
-# val_time = 0
-# while( count_iteration < TRANSIENT_MAX_ITE ):
-#    count_iteration = count_iteration +1
-#    val_time = val_time + cons_dt
-#    print ('Iteration: {}'.format(count_iteration) )
-#    # RungeKutta2(ans_last, ans_next, nlSolver1, U     )
-#    RungeKutta2(aa_l,     aa_n,     nlSolver2, U_con )
-#    #nlSolver1.solve()
-#    residual = assemble(inner(aa_n -aa_l,aa_n -aa_l)*dx)
-#    print ('Residual : {}'.format(residual) )
-#    ans_last.assign(ans_next)
-#    aa_l.assign(aa_n)
-#    save_results(ans_next, aa_n, val_time)
+count_iteration   = 0
+val_time = 0
+while( count_iteration < TRANSIENT_MAX_ITE ):
+   count_iteration = count_iteration +1
+   val_time = val_time + cons_dt
+   print ('Iteration: {}'.format(count_iteration) )
+   # RungeKutta2(ans_last, ans_next, nlSolver1, U     )
+   RungeKutta2(aa_l,     aa_n,     nlSolver2, U_con )
+   #nlSolver1.solve()
+   residual = assemble(inner(aa_n -aa_l,aa_n -aa_l)*dx)
+   print ('Residual : {}'.format(residual) )
+   ans_last.assign(ans_next)
+   aa_l.assign(aa_n)
+   save_results(ans_next, aa_n, val_time)
 
