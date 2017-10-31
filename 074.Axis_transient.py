@@ -34,10 +34,10 @@ cons_ome    = 1.5E-3             # velocidade angular tampa
 cons_dt     = 1.0E-3             # intervalo de tempo
 cons_gg     = 0.0#9.8                # gravidade
 cons_vin    = 1.00E-4
-cons_dp     = 3.35E-6            # tamanho da particula: 3.35; 10.25; 19.37; 28.27; 38; 63
+cons_dp     = 1.0E-6            # tamanho da particula: 3.35; 10.25; 19.37; 28.27; 38; 63
 cons_u_00   = 0                  # velocidade nula
 
-TRANSIENT_MAX_ITE = 2000
+TRANSIENT_MAX_ITE = 10000
 
 # ------ MESH ------ #
 part1 = Polygon([
@@ -168,7 +168,7 @@ DT       = Constant( cons_dt  )
 dP       = Constant( cons_dp  )
 N2       = Constant( 2.0      )
 VI_IN    = Constant( cons_vin )
-AA_IN    = Constant( 0.5      )
+AA_IN    = Constant( 1.0      )
 PI       = Constant( pi       )
 GG = as_vector([ Constant(0), Constant(0), gravity ])
 
@@ -204,12 +204,11 @@ vorticity  = as_vector([  -Dx(ut_md,dw),
                            Dx(ur_n, dw) -Dx(uw_n, dr), 
                            ut_n/r +Dx(ut_n, dr)          ])
 
-frep  = Constant(0.5)
-u_pmi = dP*dP*(RHO_p -RHO)/(18*frep*MU) *(GG +grad_scalar(pp_md)/RHO_p)
+u_pmi = dP*(RHO*GG +grad_scalar(pp_n))
 
 F1    = \
-      + inner(RHO*dot(uu_n,grad_uu_n.T), vv)  *dx \
-      + inner(sigma_n, grad_vv)                *dx \
+      + inner(RHO*dot(uu_n,grad_uu_n.T), vv)    *dx \
+      + inner(sigma_n, grad_vv)                 *dx \
       + div_uu_n*qq                             *dx \
       - VI_IN/(2*PI*r)*qq                       *dx(dx_inlet) \
       - VI_IN*VI_IN/(2*PI*r)*vt                 *dx(dx_inlet) \
@@ -223,12 +222,11 @@ F1    = \
       # + inner(grad_scalar(pp_md),          dot(uu_md,grad_vv.T))  *DT/N2 *dx \
       # + inner(RHO*dot(uu_md,grad_uu_md.T), dot(uu_md,grad_vv.T))  *DT/N2 *dx \
 
-F2    = inner(aa_df/DT, bb)                     *dx \
-      + div_cyl((uu_md +u_pmi)*aa_md) *bb              *dx \
-      + inner(grad_aa_md, grad_bb)*Constant(1E-8)*dx \
-      + inner(dot(uu_md, grad_aa_md),      dot(uu_md, grad_bb))   *DT/N2 *dx \
-      - VI_IN*AA_IN/(2*PI*r)*bb                 *dx(dx_inlet)
-
+F2    = inner(aa_df/DT, bb)                                                         *dx \
+      + div_cyl((uu_n+u_pmi)*aa_md) *bb                                             *dx \
+      + inner(grad_aa_md, grad_bb)*Constant(1E-8)                                   *dx \
+      - VI_IN*AA_IN/(2*PI*r)*bb                                                     *dx(dx_inlet)
+      # + inner(dot(uu_n+u_pmi, grad_aa_md),      dot(uu_n+u_pmi, grad_bb))    *DT/N2 *dx \
 
 u_00     = Constant( cons_u_00 )
 ur_in    = Constant(-cons_vin  )
@@ -287,13 +285,13 @@ nlSolver2.parameters["nonlinear_solver"] = "snes"
 
 prm1 = nlSolver1.parameters["snes_solver"]
 prm2 = nlSolver2.parameters["snes_solver"]
-for prm in [prm1]:
+for prm in [prm1, prm2]:
    prm["error_on_nonconvergence"       ] = False
    prm["solution_tolerance"            ] = 1.0E-16
    prm["maximum_iterations"            ] = 10
    prm["maximum_residual_evaluations"  ] = 20000
    prm["absolute_tolerance"            ] = 8.0E-14
-   prm["relative_tolerance"            ] = 4.0E-14
+   prm["relative_tolerance"            ] = 4.0E-15
    prm["linear_solver"                 ] = "mumps"
    # prm["sign"                          ] = "default"
    # prm["method"                        ] = "vinewtonssls"
@@ -367,6 +365,33 @@ def RungeKutta2(ans_now, ans_nxt, nlSolver, U):
    ans_now.assign(ans_aux)
    ans_nxt.assign(project( ans_aux+ RK2, U))
 
+def RungeKutta4(ans_now, ans_nxt, nlSolver, U):
+   ans_aux  = Function(U)
+   ans_aux.assign(ans_now)
+   RK1      = Function(U)
+   RK2      = Function(U)
+   RK3      = Function(U)
+   RK4      = Function(U)
+   # 1st iteration
+   ans_now.assign( ans_aux )
+   nlSolver.solve()
+   RK1.assign( ans_nxt -ans_now )
+   # 2nd iteration
+   ans_now.assign( ans_aux+RK1/2.0 )
+   nlSolver.solve()
+   RK2.assign( ans_nxt -ans_now )
+   # 3rd iteration
+   ans_now.assign( ans_aux+RK2/2.0 )
+   nlSolver.solve()
+   RK3.assign( ans_nxt -ans_now )
+   # 4th iteration
+   ans_now.assign( ans_aux+RK3 )
+   nlSolver.solve()
+   RK4.assign( ans_nxt -ans_now )
+   # return RungeKutta estimate
+   ans_now.assign(ans_aux)
+   ans_nxt.assign(project( ans_aux+ (RK1+RK2*2.0+RK3*2.0+RK4)/6.0, U))
+
 # ------ TRANSIENT SIMULATION ------ #
 # assign(ans_next.sub(p_ur), project(Constant(0.0 ), U_vel1 ))
 # assign(ans_next.sub(p_ut), project(Constant(0.0 ), U_vel1 ))
@@ -388,12 +413,12 @@ def RungeKutta2(ans_now, ans_nxt, nlSolver, U):
 
 # ans_last.assign(ans_next)
 
-for u_val in [ 10**(-2+exp*0.05) for exp in range(51) ]:
+for u_val in [ 10**(-2+exp*0.2) for exp in range(11) ]:
    print ('Velocity: {}'.format(u_val))
    VI_IN.assign(  u_val  )
    nlSolver1.solve()
 
-save_results(ans_next, aa_n, u_val)
+save_results(ans_next, aa_n, 0.0)
 
 count_iteration   = 0
 val_time = 0
