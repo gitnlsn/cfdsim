@@ -1,6 +1,4 @@
 '''
-Filename: 001.Tmixer_Opt.py
-Author  : Nelson Kenzo Tamashiro
 Date    : 24 Jun 2017
 
 dolfin-version: 2017.1

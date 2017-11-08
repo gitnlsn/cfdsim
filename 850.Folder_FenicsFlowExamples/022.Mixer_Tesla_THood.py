@@ -1,6 +1,4 @@
 '''
-Filename: 027.TeslaMixer_TaylorHood.py
-Author  : Nelson Kenzo Tamashiro
 Date    : 18 Jan 2017
 
 dolfin-version: 2016.2

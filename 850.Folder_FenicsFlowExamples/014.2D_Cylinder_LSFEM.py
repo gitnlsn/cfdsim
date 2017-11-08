@@ -3,8 +3,6 @@ DESCRIPTION:
 
 ANALYSIS:
 
-AUTHOR: Nelson Kenzo Tamashiro
-
 DATE: 24.06.2017
 '''
 

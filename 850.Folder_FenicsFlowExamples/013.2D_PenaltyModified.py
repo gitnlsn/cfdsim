@@ -1,7 +1,4 @@
 '''
-Filename: 029.NStokes_ContinutyModified.py
-Author  : Nelson Kenzo Tamashiro
-Date    : 22 Jan 2017
 
 dolfin-version: 2016.2
 

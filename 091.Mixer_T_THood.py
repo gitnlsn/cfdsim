@@ -1,8 +1,4 @@
 '''
-Filename: 026.TMixer_TaylorHood.py
-Author  : Nelson Kenzo Tamashiro
-Date    : 18 Jan 2017
-
 dolfin-version: 2016.2
 
 Description:
