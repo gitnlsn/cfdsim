@@ -1,6 +1,6 @@
 '''
 
-NELSON KENZO TAMASHIRO
+ 
 
 19.07.2017
 

@@ -2,7 +2,7 @@
 DESCRICAO:
 
 DATA:    18.05.2017
-AUTOR:   NELSON KENZO TAMASHIRO
+AUTOR:    
 '''
 # ------ IMPORTACAO DE BIBLIOTECAS ------ #
 from     sympy             import   *
